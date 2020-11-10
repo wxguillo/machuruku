@@ -1,0 +1,15 @@
+Package: machuruku
+Title: Ancestral niche reconstruction
+Version: 1.8
+Date: 2020-11-10
+Authors@R: c(
+    person("Wilson", "Guillory", email = "wxg1@rutgers.edu"),
+    person("Jason", "Brown", email = "jason.brown@siu.edu"))
+Description: Reconstruct and visualize ancestral niches
+License: GPL (>= 3)
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Imports: dismo, fGarch, sp, raster, gbm, spatstat, tidytree, ape, phytools, stringr, RColorBrewer, TeachingDemos, cowplot, ggplot2, gridExtra, ggtree, nndist, tcltk, setTKProgressBar
+URL: https://github.com/wxguillo/machuruku
