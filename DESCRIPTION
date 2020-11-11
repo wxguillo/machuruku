@@ -3,8 +3,8 @@ Title: Ancestral niche reconstruction
 Version: 1.8
 Date: 2020-11-10
 Authors@R: c(
-    person("Wilson", "Guillory", email = "wxg1@rutgers.edu"),
-    person("Jason", "Brown", email = "jason.brown@siu.edu"))
+    person("Wilson", "Guillory", email = "wxg1@rutgers.edu", role = c("aut", "cre")),
+    person("Jason", "Brown", email = "jason.brown@siu.edu", role = "aut"))
 Description: Reconstruct and visualize ancestral niches
 License: GPL (>= 3)
 Encoding: UTF-8
