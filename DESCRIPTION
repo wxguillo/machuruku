@@ -11,6 +11,6 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
-Imports: dismo, fGarch, sp, raster, gbm, spatstat, tidytree, ape, phytools, stringr, RColorBrewer, TeachingDemos, cowplot, ggplot2, gridExtra, ggtree
+Imports: dismo, fGarch, sp, raster, gbm, spatstat, rgdal, adehabitatHR, tidytree, ape, phytools, stringr, RColorBrewer, TeachingDemos, cowplot, ggplot2, gridExtra, ggtree
 Suggests: nndist, tcltk, setTKProgressBar
 URL: https://github.com/wxguillo/machuruku

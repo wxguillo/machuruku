@@ -65,6 +65,9 @@
 #
 # rewrote machu.treeplot() to be more efficient and flexibly
 # accept input from both machu.tree.unc() and machu.trees.unc()
+#
+# added the machu.geo.idw() function to clip extraneous areas
+# from niche models via inverse-distance weighting
 
 ##############################################################
 
@@ -1828,5 +1831,117 @@ machu.plotmap <- function(model, col=1, title=TRUE) {
       title(main=names(model)[i])
     }
   }
+}
+#'Clip models via inverse-distance weighting
+#'
+#'Niche modeling may recover areas that are distant and non-contiguous to a species' core
+#'range as suitable habitat. This can be either a feature or a bug. In certain cases one
+#'may wish to exclude these "extraneous" suitable areas from an analysis because they could
+#'not realistically be migrated to and are thus superfluous. This function uses inverse-distance
+#'weighting to clip extraneous suitable areas a certain distance from a core range, as
+#'delineated by occurrence data. Because occurrence data for extinct lineages does not exist
+#'(barring fossils, which do not exist for many taxa), extant taxon occurrence data is used by
+#'proxy. We suggest using machu.treeplot() to discern the extant descendants of the lineage
+#'in question, and then restricting the occurrence data to those taxa using the taxa argument
+#'of this function. Currently, the function only takes one niche model as input at a time.
+#'
+#'@param in.sdm niche model, a single raster object. Corresponds to one element
+#'of the list output of machu.3.anc.niche().
+#'@param in.pts occurrence points, a dataframe. Default input format is taxon, long, lat,
+#'though this can be finagled with other arguments.
+#'@param buffer.dist distance (in km) by which to buffer a minimum convex polygon (MCP)
+#'around the occurrence points. Any model values inside this MCP will remain unchanged.
+#'@param kernel.size a multiplier that defines the broadness of the smoothing edge
+#'surrounding the MCP created by buffer.dist. A kernel.size of 2 creates a smoothing
+#'edge twice the width of the MCP buffer.dist. Thus, higher values create broader models.
+#'Minimum value of 1.
+#'@param MCP.percent defines proportion of outlier occurrence points to be excluded from
+#'the MCP creation.
+#'@param taxa.col the column in the occurrence data with taxon names. Set to 1 by default.
+#'@param long.col the column in the occurrence data with longitudes (x). Set to 2 by default.
+#'@param lat.col the column in the occurrence data with latitudes (y). Set to 3 by default.
+#'@param taxa a string or string vector declaring which taxa are to be used in the creation of the
+#'MCP. Must match exactly. If the argument is not called, the function uses all occurrence
+#'points by default.
+#'
+#'@return a clipped niche model, formatted as a raster layer.
+#'
+#'@examples
+#'# after running through the "quick-start" Machuruku tutorial:
+#'clip1<-machu.geo.idw(mod[[1]], occ, taxa=c("pepperi","bassleri","yoshina"), buffer.dist = 100, kernel.size = 2, MCP.percent = 50)
+#'plot(mod[[1]]);plot(clip1)
+#'# repeat for the silverstonei ancestor:
+#'clip2<-machu.geo.idw(mod[[2]], occ, taxa="silverstonei", buffer.dist = 100, kernel.size = 2, MCP.percent = 50)
+#'plot(mod[[2]]);plot(clip2)
+#'@import rgdal
+#'@import raster
+#'@import adehabitatHR
+#'@export
+machu.geo.idw <- function(in.sdm, in.pts, buffer.dist=300, kernel.size=2, MCP.percent=100,
+                          taxa.col=1, long.col=2, lat.col=3, taxa=NULL) {
+
+  # restrict occ data to a particular species (or several)
+  if (is.null(taxa)==FALSE){
+    in.pts <- in.pts[in.pts[,taxa.col] %in% taxa,]
+  }
+
+  ## required estimate km from dd
+  if (kernel.size<1){ kernel.size=1 }
+  #print(kernel.size)
+  ext<-extent(in.sdm)
+  latU<-ext[3]
+  latL<-ext[4]
+
+  # estimage dd to km for study area
+  Env.dd.y <- mean(c(latU,latL))
+
+  ### Jason's dirty dd to km for lat
+  AvgKm <- abs(((-0.0139*(Env.dd.y^2))+(0.0898*Env.dd.y)+111.1))
+  buffer.sp <- buffer.dist/AvgKm #values in km
+
+  ## convert to shapefile
+  OcSp <- SpatialPoints(in.pts[,c(long.col,lat.col)], CRS("+proj=longlat +datum=WGS84"))
+
+  ## create MCP
+  OcSp2 <- mcp(OcSp, percent = MCP.percent) # note this could be adjusted
+
+  ## project shapefile
+  OcSpT <- spTransform(OcSp2, CRS("+proj=longlat +datum=WGS84"))
+
+  ## buffer MCP
+  OcSpT2 <- raster::buffer(OcSpT, width = buffer.sp, dissolve = T)
+
+  #### code for inverse distance weighting of model
+  ## buffer 2 MCP - used to speed up distance function
+  OcSpT2B <- raster::buffer(OcSpT2, width = (buffer.sp*2.1*kernel.size), dissolve = T)
+
+  ## convert shapefile polygons of buffer to raster for use as a masks
+  rr <- rasterize(OcSpT2, in.sdm,update=FALSE)
+  tt <- rasterize(OcSpT2B,in.sdm,update=FALSE, background=0)
+
+  #subtrack mask from eachother, replace nulls, add 1
+  cc<-tt-rr
+  cc[cc==1]<-NA
+  cc=cc+1
+
+  ## create distance to buffer function
+  dist<-distance(cc)
+
+  ## buffer 3 - distance to scale values outside of first buffer
+  OcSpT3 <- raster::buffer(OcSpT2, width = (buffer.sp*kernel.size), dissolve = T)
+
+  #convert final buffer to raster
+  raster_mask1 <- rasterize(OcSpT3,dist,update=FALSE)
+
+  #convent mask to distance calculation
+  raster_mask2 <- raster_mask1 * dist
+  raster_mask2_rescale <- 1- (raster_mask2/ (maxValue(raster_mask2)))
+
+  #final mask
+  ##this would be the step where you would loop through a bunch of SDMs per species - each 'in.sdm' could be a SDM from another time period
+  final_model <-in.sdm* raster_mask2_rescale
+
+  #output
+  return(final_model)
 }
 
