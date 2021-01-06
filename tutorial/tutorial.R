@@ -1,22 +1,7 @@
-# library(dismo)
-# library(rgdal)
-# require(raster)
-# library(phytools)
-# library(ape)
-# library(SuppDists)
-# library(fGarch)
-# library(schoolmath)
-# library(ggtree)
-# library(cowplot)
-# library(ggplot2)
-# library(treeio)
-# library(tidytree)
-# library(tcltk)
-# library(spatstat)
-# library(stringr)
-# library(RColorBrewer)
 library(machuruku)
-
+library(raster)
+library(ape)
+library(treeio)
 ######## load the data
 
 # set working directory
@@ -76,22 +61,14 @@ machu.plotmap(mod)
 occ.rarefied <- machu.occ.rarefy(in.pts = occ, rarefy.dist = 10)
 resp <- machu.1.tip.resp(occ.rarefied, ClimCur, verbose = T)
 # plot rarefied points
-plot(bio1)
+par(mfrow=c(1,1))
+plot(bio1, axes = F, xlim = c(-78, -74), ylim = c(-10,-5))
 points(occ$long_DD, occ$lat_DD, pch = 16, cex = 0.75)
 taxa <- c(as.character(unique(occ.rarefied$species)))
 for (i in taxa){
   points(subset(occ.rarefied, species==i)$long_DD, subset(occ.rarefied, species==i)$lat_DD, col = which(taxa==i)+3, pch=16, cex=0.75)
 }
-legend("topright", legend = c(as.character(unique(occ.rarefied$species))), col = 4:8, pch=16)
-
-# plot rarefied points
-plot(bio1, axes = F, xlim = c(-78, -74), ylim = c(-10,-5))
-points(occ$long_DD, occ$lat_DD, pch = 16, cex = 0.75)
-for (i in c(as.character(unique(occ.rarefied$species)))){
-  points(subset(occ.rarefied, species==i)$long_DD, subset(occ.rarefied, species==i)$lat_DD, col = which(b==i)+3, pch=16, cex=0.75)
-}
 legend("topright", legend = c(as.character(unique(occ$species))), col = 4:8, pch=16)
-
 # visualize response curves
 machu.respplot(resp)
 machu.respplot(resp, taxa = "bassleri", linewidth = 2, linecolor = "coral3")
@@ -114,11 +91,16 @@ ace.M2.unc <- machu.2.ace(resp, bassleritree, T = 3.3, n.unc = 4)
 # load tree as treedata object
 bassleribeast <- read.beast("basslerigroup.treefile")
 trees <- machu.tree.unc(bassleribeast)
-machu.treeplot(trees, upperX = 3, timelabeloffset = 1.25, nodelabelcolor = "darkseagreen2", timeslice = 2.49)
+machu.treeplot(trees, upperX = 3, timelabeloffset = 1.25, nodecirclecolor = "darkseagreen2", timeslice = 2.49)
 # run machu.2.ace with each tree separately
 ace.LCI <- machu.2.ace(resp, as.phylo(trees$`LCI tree`), T = 2.49)
 ace.input <- machu.2.ace(resp, as.phylo(trees$`input tree`), T = 2.49)
 ace.UCI <- machu.2.ace(resp, as.phylo(trees$`UCI tree`), T = 2.49)
+# build new trees with posterior
+trees <- machu.trees.unc("posterior.trees")
+machu.treeplot(trees, upperX = 7, tiplabelsize = 2.5,
+               timelabeloffset = 1.01, timelabelsize = 2,
+               nodecirclecolor = "darkseagreen2", nodecirclesize = 5, nodelabelsize = 3)
 # save machu.2.ace() output
 ace.all <- machu.2.ace(resp, bassleritree, savename = "ace_all")
 # load ace_all.csv
@@ -134,7 +116,7 @@ machu.plotmap(mod.all)
 plot(bassleritree)
 # build present-day models for only extant taxa
 mod.extant <- machu.3.anc.niche(ace.all, ClimCur, verbose = T, taxa = 1:4)
-par(mfrow=c(1,4))
+par(mfrow=c(2,2))
 machu.plotmap(mod.extant)
 # turn clip.Q off
 mod.clip.Q <- machu.3.anc.niche(ace.M2, ClimM2, verbose = T, clip.Q = F)
@@ -151,3 +133,8 @@ mod.calc.unc <- machu.3.anc.niche(ace.M2.unc, ClimM2, verbose = T, calc.unc = T)
 par(mfrow=c(2,2))
 machu.plotmap(mod)
 machu.plotmap(mod.calc.unc)
+# clip with linear distance weighting
+clip <- machu.geo.idw(mod[[2]], occ, taxa = "silverstonei", buffer.dist = 100, kernel.size = 2, MCP.percent = 50)
+par(mfrow=c(1,2))
+plot(mod[[2]])
+plot(clip)
