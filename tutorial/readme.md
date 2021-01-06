@@ -3,30 +3,32 @@ Welcome! On this page I'll be walking you through using the R package I develope
 
 First, I will provide a very quick guide to using Machuruku on a basic level. Then, I will do a deeper dive into the various functions provided and how they can assist you in accounting for uncertainty, performing better visualizations, and other tasks. 
 ## Contents
-* [Introduction](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#introduction)
-  * [Installing Machuruku](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#installing-machuruku)
-  * [Downloading and exploring tutorial data](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#downloading-and-exploring-tutorial-data)
-    * [Loading tree](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#loading-tree)
-    * [Loading occurrence data](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#loading-occurrence-data)
-    * [Loading climate data](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#loading-climate-data)
-* [Quick-start Guide](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#quick-start-guide)
-  * [Estimating tip response curves](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#estimating-tip-response-curves)
-  * [Estimating ancestral niches at a time-slice](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#estimating-ancestral-niches-at-a-time-slice)
-  * [Projecting ancestral models into paleoclimatic data](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#projecting-ancestral-models-into-paleoclimatic-data)
-* [Detailed Guide](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#detailed-guide)
-  * [Estimating tip response curves](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#estimating-tip-response-curves-1)
-    * [Accounting for spatial autocorrelation by rarefying occurrence data](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#accounting-for-spatial-autocorrelation-by-rarefying-occurrence-data)
-    * [Visualizing climate response curves](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#visualizing-climate-response-curves)
-  * [Estimating ancestral niches](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#estimating-ancestral-niches)
-    * [Estimating niches at a time-slice](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#estimating-niches-at-a-time-slice)
-    * [Estimating niches for all nodes](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#estimating-niches-for-all-nodes)
-    * [Accounting for uncertainty in ancestral character estimation](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#accounting-for-uncertainty-in-ancestral-character-estimation)
-    * [Accounting for uncertainty in divergence time estimation](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#accounting-for-uncertainty-in-divergence-time-estimation)
-    * [Saving and loading ace output](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#saving-and-loading-ace-output)
-  * [Projecting ancestral models into paleoclimatic data](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#projecting-ancestral-models-into-paleoclimatic-data-1)
-    * [Clipping response curve tails to produce cleaner models](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#clipping-response-curve-tails-to-produce-cleaner-models)
-    * [Creating binary models](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#creating-binary-models)
-    * [Incorporating uncertainty from ancestral character estimation](https://github.com/wxguillo/machuruku/blob/master/tutorial/README.md#incorporating-uncertainty-from-ancestral-character-estimation)
+* [Introduction](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#introduction)
+  * [Installing Machuruku](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#installing-machuruku)
+  * [Downloading and exploring tutorial data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#downloading-and-exploring-tutorial-data)
+    * [Loading tree](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#loading-tree)
+    * [Loading occurrence data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#loading-occurrence-data)
+    * [Loading climate data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#loading-climate-data)
+* [Quick-start Guide](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#quick-start-guide)
+  * [Estimating tip response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-tip-response-curves)
+  * [Estimating ancestral niches at a time-slice](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-ancestral-niches-at-a-time-slice)
+  * [Projecting ancestral models into paleoclimatic data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#projecting-ancestral-models-into-paleoclimatic-data)
+* [Detailed Guide](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#detailed-guide)
+  * [Estimating tip response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-tip-response-curves-1)
+    * [Accounting for spatial autocorrelation by rarefying occurrence data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-spatial-autocorrelation-by-rarefying-occurrence-data)
+    * [Visualizing climate response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#visualizing-climate-response-curves)
+  * [Estimating ancestral niches](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-ancestral-niches)
+    * [Estimating niches at a time-slice](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-niches-at-a-time-slice)
+    * [Estimating niches for all nodes](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-niches-for-all-nodes)
+    * [Accounting for uncertainty in ancestral character estimation](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-uncertainty-in-ancestral-character-estimation)
+    * [Accounting for uncertainty in divergence time estimation given one tree with error bars](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-uncertainty-in-divergence-time-estimation-given-one-tree-with-error-bars)
+    * [Accounting for uncertainty in divergence time estimation given a Bayesian posterior distribution of trees](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-uncertainty-in-divergence-time-estimation-given-a-bayesian-posterior-distribution-of-trees)
+    * [Saving and loading ace output](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#saving-and-loading-ace-output)
+  * [Projecting ancestral models into paleoclimatic data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#projecting-ancestral-models-into-paleoclimatic-data-1)
+    * [Clipping response curve tails to produce cleaner models](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#clipping-response-curve-tails-to-produce-cleaner-models)
+    * [Creating binary models](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#creating-binary-models)
+    * [Incorporating uncertainty from ancestral character estimation](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#incorporating-uncertainty-from-ancestral-character-estimation)
+    * [Limiting model area with inverse-distance weighting](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#limiting-model-area-with-inverse-distance-weighting)
 ## Introduction
 ### Installing Machuruku
 To install Machuruku, simply use the `install_github()` function from `devtools`:
@@ -527,7 +529,7 @@ machu.plotmap(mod.calc.unc)
 
 Again, the top two models are from `mod`, with `calc.unc = FALSE`, and the bottom two models are from `mod.calc.unc`, with `calc.unc = TRUE` (also notice that we used `ace.M2.unc` as our input, not `ace.M2`). The models incorporating uncertainty are actually a bit narrower in terms of the highly suitable habitat, but should characterize the total variability in suitability better than the other models.
 
-#### Limiting model area with linear-distance weighting
+#### Limiting model area with inverse-distance weighting
 Often, niche models will recover areas obviously outside the known range of a species as suitable. While this can be useful, depending on the question it may be superfluous or misleading. To that end, we added a function called `machu.geo.idw` that uses inverse-distance weighting to restrict niche models to the areas surrounding the taxon's distribution. Essentially, this is a way for accounting for migration limitations by removing from consideration suitable areas that are nonetheless separated from the taxon's actual distribution by geographic barriers or other factors. An obvious hurdle for this function is that *we don't know* what the actual distributions of ancestral taxa were; figuring that out is the whole point of Machuruku in the first place. To (sort of) get around this, the user just specifies an extant taxon distribution (as occurrence data) to represent the ancestral taxon. This is obviously an imperfect system, but it's the best that can be done absent voluminous fossil data. The function is used as such:
 ```
 clip <- machu.geo.idw(mod[[2]], occ.rarefied, taxa = "silverstonei", buffer.dist = 100, kernel.size = 2, MCP.percent = 50)
