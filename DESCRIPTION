@@ -1,7 +1,7 @@
 Package: machuruku
 Title: Ancestral niche reconstruction
-Version: 1.8
-Date: 2020-11-10
+Version: 1.8.1
+Date: 2021-03-31
 Authors@R: c(
     person("Wilson", "Guillory", email = "wxg1@rutgers.edu", role = c("aut", "cre")),
     person("Jason", "Brown", email = "jason.brown@siu.edu", role = "aut"))
@@ -11,6 +11,6 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
-Imports: dismo, fGarch, sp, raster, gbm, spatstat, rgdal, adehabitatHR, tidytree, ape, phytools, stringr, RColorBrewer, TeachingDemos, cowplot, ggplot2, gridExtra, ggtree
+Imports: dismo, fGarch, sp, raster, gbm, spatstat.geom, rgdal, adehabitatHR, tidytree, ape, phytools, stringr, RColorBrewer, TeachingDemos, cowplot, ggplot2, gridExtra, ggtree
 Suggests: nndist, tcltk, setTKProgressBar
 URL: https://github.com/wxguillo/machuruku

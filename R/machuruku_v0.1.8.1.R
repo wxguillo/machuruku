@@ -68,6 +68,10 @@
 #
 # added the machu.geo.idw() function to clip extraneous areas
 # from niche models via inverse-distance weighting
+#
+#                Machuruku v0.1.8.1
+# changed importation of "spatstat" to "spatstat.geom" as the
+# 'nndist' function was moved to the latter package.
 
 ##############################################################
 
@@ -344,7 +348,7 @@ machu.top.env <- function(occ, clim, learning.rt = 0.01, pa.ratio = 4, steps = 5
 #' @param rarefy.units the units of rarefy.dist parameter, either "km" for kilometers or "dd" for decimal degrees
 #' @param verbose if verbose=T, texts boxes displaying progress will be displayed
 #' @return A script to systematically select localities within a specified area at specified spatial resolution.  The outcome is always the same and is not random.  This reduces sampling biases in downstream analyses- you should do it! Output is a reduced dataset with less spatial autocorrelation.
-#' @importFrom spatstat nndist
+#' @importFrom spatstat.geom nndist
 #' @importFrom tcltk setTkProgressBar
 #' @examples
 #' ##remove occurrences closer than a minimum distance to each other (remove aggregation). Setting min.dist=0 will remove no occurrence.
