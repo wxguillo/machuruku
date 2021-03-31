@@ -5,6 +5,12 @@ To install Machuruku, simply run the following in R:
 install.packages("devtools")
 devtools::install_github("wxguillo/machuruku")
 ```
+If your install fails because of ggtree, install it separately with the following, then reattempt the above:
+```
+install.packages("BiocManager")
+BiocManager::install("ggtree")
+```
+
 For both quick and detailed tutorials on how to use Machuruku, please visit the [tutorial page](https://github.com/wxguillo/machuruku/tree/main/tutorial) in this repository.
 
 *Software citation and associated manuscript:* Guillory WG, Brown JL. A new method for integrating ecological niche modeling with phylogenetics to estimate ancestral distributions. Systematic Biology - in press
