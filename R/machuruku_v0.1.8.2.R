@@ -72,6 +72,9 @@
 #                Machuruku v0.1.8.1
 # changed importation of "spatstat" to "spatstat.geom" as the
 # 'nndist' function was moved to the latter package.
+#
+#                Machuruku v0.1.8.2
+# rewrote machu.treeplot() to circumvent an error
 
 ##############################################################
 
@@ -799,7 +802,6 @@ machu.trees.unc <- function(file, burnin = 0.1, conf = 0.95, inc = 10000, verbos
 #'@import ggtree
 #'@import ggplot2
 #'@import gridExtra
-#'@import cowplot
 #'@export
 machu.treeplot <- function(tree, upperX=20,
                            nodecirclecolor="cadetblue1", nodecirclesize=7,
@@ -836,7 +838,7 @@ machu.treeplot <- function(tree, upperX=20,
         theme_tree2() +
         geom_text2(aes(label=singletreetimes), nudge_x = timelabeloffset, size=timelabelsize) +
         xlim(-xlimit,upperX) +
-        geom_vline(xintercept = -timeslice, color = timeslicecolor, linetype = timeslicelinetype)
+        ggplot2::geom_vline(xintercept = -timeslice, color = timeslicecolor, linetype = timeslicelinetype)
     }
     ### if the user has more than one tree (usually 3), plot them all on the same x-axis
   } else if (class(tree) == "list" && length(tree) > 1){
@@ -847,42 +849,42 @@ machu.treeplot <- function(tree, upperX=20,
 
     # if a time-slice is not to be plotted:
     if (is.null(timeslice) == TRUE){
-      z<-lapply(phylos,
-                function(x){
-                  nt <-  Ntip(x)
-                  nn <- Nnode(x)
-                  times <- rep(NA, nt)
-                  times[(nt+1):(nt+nn)] <- round(branching.times(x), digits=timelabeldigits)
-                  revts(ggtree(x) +
-                          geom_nodepoint(color=nodecirclecolor, size=nodecirclesize) +
-                          geom_text2(aes(subset=!isTip, label=node), size=nodelabelsize) +
-                          geom_tiplab(size=tiplabelsize) +
-                          theme_tree2()) +
-                    geom_nodelab(aes(label=times), nudge_x = timelabeloffset, size=timelabelsize) +
-                    xlim(-xlimit,upperX)
-                }
-      )
+      plotlist <- list()
+      for (i in 1:length(phylos)){
+        x  <- phylos[[i]]
+        nt <- Ntip(x)
+        nn <- Nnode(x)
+        times <- rep(NA, nt)
+        times[(nt+1):(nt+nn)] <- round(branching.times(x), digits=timelabeldigits)
+        plotlist[[i]] <- revts(ggtree(x) +
+                                 geom_nodepoint(color=nodecirclecolor, size=nodecirclesize) +
+                                 geom_text2(aes(subset=!isTip, label=node), size=nodelabelsize) +
+                                 geom_tiplab(size=tiplabelsize) +
+                                 theme_tree2()) +
+          geom_nodelab(aes_string(label=times), nudge_x = timelabeloffset, size=timelabelsize) +
+          xlim(-xlimit,upperX)
+      }
       # if a time-slice is to be plotted:
     } else if (is.null(timeslice) == FALSE){
-      z<-lapply(phylos,
-                function(x){
-                  nt <-  Ntip(x)
-                  nn <- Nnode(x)
-                  times <- rep(NA, nt)
-                  times[(nt+1):(nt+nn)] <- round(branching.times(x), digits=timelabeldigits)
-                  revts(ggtree(x) +
-                          geom_nodepoint(color=nodecirclecolor, size=nodecirclesize) +
-                          geom_text2(aes(subset=!isTip, label=node), size=nodelabelsize) +
-                          geom_tiplab(size=tiplabelsize) +
-                          theme_tree2()) +
-                    geom_nodelab(aes(label=times), nudge_x = timelabeloffset, size=timelabelsize) +
-                    xlim(-xlimit,upperX) +
-                    geom_vline(xintercept = -timeslice, color = timeslicecolor, linetype = timeslicelinetype)
-                }
-      )
+      plotlist <- list()
+      for (i in 1:length(phylos)){
+        x  <- phylos[[i]]
+        nt <- Ntip(x)
+        nn <- Nnode(x)
+        times <- rep(NA, nt)
+        times[(nt+1):(nt+nn)] <- round(branching.times(x), digits=timelabeldigits)
+        plotlist[[i]] <- revts(ggtree(x) +
+                                 geom_nodepoint(color=nodecirclecolor, size=nodecirclesize) +
+                                 geom_text2(aes(subset=!isTip, label=node), size=nodelabelsize) +
+                                 geom_tiplab(size=tiplabelsize) +
+                                 theme_tree2()) +
+          geom_nodelab(aes_string(label=times), nudge_x = timelabeloffset, size=timelabelsize) +
+          xlim(-xlimit,upperX) +
+          ggplot2::geom_vline(xintercept = -timeslice, color = timeslicecolor, linetype = timeslicelinetype)
+      }
     }
     # plot
-    gridExtra::grid.arrange(grobs=z, nrow=length(z))
+    gridExtra::grid.arrange(grobs=plotlist, nrow=length(plotlist))
   }
 }
 
