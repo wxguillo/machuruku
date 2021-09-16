@@ -1,4 +1,5 @@
 # machuruku
+## Sept 16 2021: machuruku has been updated to v 1.8.3, please reinstall.
 Welcome to our page for Machuruku, our R package for phylogenetic niche modeling. Machuruku uses a modified Bioclim niche-modeling method and ancestral character estimation to reconstruct ancestral niches. Input data consists of present-day climate rasters, a time-calibrated phylogeny, and taxon occurrence data for all tips. Ancestral niche models can be projected into additionally provided paleoclimate data to visualize the geographic origins of a lineage. 
 To install Machuruku, simply run the following in R:
 ```
