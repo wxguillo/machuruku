@@ -75,6 +75,13 @@
 #
 #                Machuruku v0.1.8.2
 # rewrote machu.treeplot() to circumvent an error
+#
+#                Machuruku v0.1.8.3
+# updated machu.1.tip.resp() with some cleaner code and:
+# - enabled 3 new arguments for specifying individual columns
+#   of the occurrence data input (more flexible), in this fn
+#   and in machu.top.env()
+# - enabled use of RasterBricks in this fn and machu.3.anc.niche()
 
 ##############################################################
 
@@ -88,8 +95,11 @@
 #' For each taxon, construct a BIOCLIM species distribution model
 #' and estimate a response curve for each climate variable.
 #'
-#' @param occ occurrence data for each species, formatted as a dataframe. Format should be species, x/long, and y/lat in that order.
-#' @param ClimCur present-day climate data, formatted as a RasterStack
+#' @param occ occurrence data for each species, formatted as a dataframe
+#' @param ClimCur present-day climate data, formatted as a RasterStack or RasterBrick
+#' @param sp.col specify which column of the input occurrence data corresponds to species ID (1 by default)
+#' @param long.col specify longitude column (2 by default)
+#' @param lat.col specify latitude column (3 by default)
 #' @param verbose if TRUE, print progress (by-taxon) to the screen
 #'
 #' @return table consisting of the response of each species to the climate
@@ -100,36 +110,32 @@
 #' @import dismo
 #' @import fGarch
 #' @export
-machu.1.tip.resp <- function(occ, ClimCur, verbose = FALSE){
+machu.1.tip.resp <- function(occ, ClimCur, sp.col=1, long.col=2, lat.col=3, verbose = FALSE){
 
   # check if occurrence data is a dataframe
   if (is.data.frame(occ) == TRUE){
     # check if ClimCur is a raster stack
-    if (class(ClimCur)[1] == "RasterStack"){
+    if (class(ClimCur)[1] == "RasterStack" || class(ClimCur)[1] == "RasterBrick"){
 
       # get list of taxa
-      species.in <- apply(occ[1], 2, list)
-      # reduce to unique species names
-      species.in <-rapply(species.in,function(x)(unique(x)))
+      species.in <- unique(occ[,sp.col])
 
       # initialize output list
       output.env <- list()
       # sample climate for each species' localities
       for (i in species.in){
-        sp.temp.in <- subset(occ, species == i)
-        sp.temp.xy <- sp.temp.in[,2:3]
-        sp_name    <- i
-        Z<-bioclim(ClimCur, sp.temp.xy)
-        output.env[[(i)]] <- Z@presence
+        sp.temp.in <- subset(occ, occ[,sp.col] == i)
+        sp.temp.xy <- sp.temp.in[,c(long.col,lat.col)]
+        Z <- bioclim(ClimCur, sp.temp.xy)
+        output.env[[i]] <- Z@presence
       }
-      # initialize some vectors that'll come in handy later
+      # initialize some objects that'll come in handy later
       parm_names <- c("mean", "stdev", "skew", "lowerQ", "upperQ")
       response.list <- list()
 
       # for each species:
       for (j in species.in){
 
-        sp_name   <- j
         in.pres   <- output.env[[j]]
         n.bios    <- ncol(in.pres)
         name.bios <- colnames(in.pres)
@@ -146,7 +152,7 @@ machu.1.tip.resp <- function(occ, ClimCur, verbose = FALSE){
           sd   <- normFit$par[2]
           xi   <- normFit$par[3]
 
-          # if skew estimate is poor, mainly due to low sample size, fix skew to 1 and measure tradional mean/sd
+          # if skew estimate is poor, mainly due to low sample size, fix skew to 1 and measure traditional mean/sd
           if(normFit$convergence==1){
             mean <- mean(in.pres[,i])
             sd   <- sd(in.pres[,i])
@@ -188,18 +194,22 @@ machu.1.tip.resp <- function(occ, ClimCur, verbose = FALSE){
 
       return(response.table)
     } else {
-      print("climate layers not a RasterStack")
+      print("climate layers not a RasterStack or RasterBrick")
     }
   } else {
-    print("occ is not a data frame.")
+    print("occ is not a dataframe.")
   }
 }
+
 #' Select top environmental variables
 #'
 #' Perform a boosted regression tree analysis to identify the most important climate variables for your taxon set. This function is a modified version of humboldt.top.env() from humboldt. It runs generalized boosted regression models (a machine learning ENM algorithm) to select top parameters for inclusion your analyses. This is important because you want the models to reflect variables that are relevant to the species' distribution. Alternatively, you can run Maxent outside of R and manually curate the variables you include (also recommended).
 #'
 #' @param occ occurrence data for all taxa. Identical to input for machu.1.tip.resp(). Dataframe, with columns in the order of species, x/long, y/lat.
 #' @param clim climate data for all taxa. Identical to input for machu.1.tip.resp(). A rasterstack of corresponding climate variables.
+#' @param sp.col specify which column of the input occurrence data corresponds to species ID (1 by default)
+#' @param long.col specify longitude column (2 by default)
+#' @param lat.col specify latitude column (3 by default)
 #' @param learning.rt value from 0.01 to 0.001 for building the ENMs, start with 0.01 and if prompted, change to 0.001. the default value is 0.01
 #' @param steps numbers of trees to add at each cycle for modelling each taxon. Start with 50 and if you run into problems gradually decrease, stopping at 1. The default value is 50
 #' @param method this determines how important environmental variables are selected.There are three options: "estimate", "contrib", "nvars". If method="estimate", the boosted regression tree algorithm will choose the number of variables to include by systematically removing variables until average change in the model exceeds the original standard error of deviance explained. This is the most computationally intensive method. If method="contrib", variables above a relative influence value will be kept. See associated parameter 'contrib.greater'. If method="nvars", a fixed number of user specified variables will be kept. See associated parameter 'nvars.save'. The kept variables are selected by their relative influence. The 'nvars.save'-highest contributing variables for each taxon are retained and pooled, then ranked, and the 'nvars.save'-highest contributing variables for the whole pool are finally retained.
@@ -218,8 +228,7 @@ machu.1.tip.resp <- function(occ, ClimCur, verbose = FALSE){
 #' # identify all climate variables with a contribution greater than 10%
 #' machu.top.env(occ, clim, method = "contrib", contrib.greater = 10)
 #' @export
-
-machu.top.env <- function(occ, clim, learning.rt = 0.01, pa.ratio = 4, steps = 50, method = "contrib", nvars.save = 5, contrib.greater = 5, verbose = T) # method=='estimate' method=='contrib' method=='nvars'
+machu.top.env <- function(occ, clim, sp.col = 1, long.col = 2, lat.col = 3, learning.rt = 0.01, pa.ratio = 4, steps = 50, method = "contrib", nvars.save = 5, contrib.greater = 5, verbose = T) # method=='estimate' method=='contrib' method=='nvars'
 
 {
   if (method== "ESTIMATE"){method = "estimate"}
@@ -236,6 +245,8 @@ machu.top.env <- function(occ, clim, learning.rt = 0.01, pa.ratio = 4, steps = 5
   #################
   # specify occ and clim
   #################
+  colnames(occ)[sp.col] <- "species"
+
   # determine indices (i.e., which columns, corresponding to no. climate variables) of predictor vars
   e.var <- 4:(3+nlayers(clim))
 
@@ -280,7 +291,7 @@ machu.top.env <- function(occ, clim, learning.rt = 0.01, pa.ratio = 4, steps = 5
     sp.pa <- pa.pool[sample(nrow(pa.pool), n.pa), ]
 
     # get occurrence points for that species
-    sp.occ <- subset(occ, species==sp.name)[,2:3]
+    sp.occ <- subset(occ, species==sp.name)[,c(long.col, lat.col)]
     colnames(sp.occ) <- c("x", "y")
     ID <- rep(1, nrow(sp.occ))
 
@@ -932,7 +943,7 @@ machu.treeplot <- function(tree, upperX=20,
 #'# Plot the first five taxa (except for taxon 2), in all climate variables, in separate plots
 #'machu.respplot(resp, taxa = c(1,3:5))
 #'# Plot all taxa in four specified climate variables, and override paneling to print in a more compact format (2x2)
-#'machu.respplot(resp, clim = c("bio_1","bio_2","bio_3","bio_4), par.override = c(2,2))
+#'machu.respplot(resp, clim = c("bio_1","bio_2","bio_3","bio_4"), par.override = c(2,2))
 #'@import stringr
 #'@import fGarch
 #'@import RColorBrewer
@@ -1506,7 +1517,7 @@ machu.ace.load <- function(file){
 #'
 #'@param ace a list of tables with the reconstructed response values
 #'for each ancestor at T. Corresponds to the output of machu.2.ace().
-#'@param clim paleoclimatic data, formatted as a RasterStack. Should
+#'@param clim paleoclimatic data, formatted as a RasterStack or RasterBrick. Should
 #'be as close to time T as possible for best results.
 #'@param taxa optionally select specific taxa from ace to create models
 #'for. This is useful if you wish to visualize only one specific taxon or
@@ -1543,7 +1554,7 @@ machu.ace.load <- function(file){
 #'@export
 machu.3.anc.niche <- function(ace, clim, taxa = NULL, resp.curv = TRUE, clip.Q = TRUE, calc.unc = FALSE, verbose = FALSE) {
   #check if the paleoclimate data is a raster stack
-  if (class(clim)[1] == "RasterStack"){
+  if (class(clim)[1] == "RasterStack" || class(clim)[1] == "RasterBrick"){
 
     # initialize output
     output.bioclim <- list()
@@ -1764,7 +1775,7 @@ machu.3.anc.niche <- function(ace, clim, taxa = NULL, resp.curv = TRUE, clip.Q =
     # add names corresponding to ancestor to each model in output.model
     names(output.models) <- as.vector(names(output.bioclim))
   } else {
-    print("clim is not a RasterStack.")
+    print("clim is not a RasterStack or RasterBrick.")
   }
   return(output.models)
 }
@@ -1776,7 +1787,7 @@ machu.3.anc.niche <- function(ace, clim, taxa = NULL, resp.curv = TRUE, clip.Q =
 #'
 #'@param model output from machu.3.anc.niche(). A list of rasters representing
 #'the models to display. Using the full output displays each model successively.
-#'User can also specify a subset of models using single-bracket [x] notation to
+#'User can also specify a subset of models using single-bracket notation to
 #'only plot certain models or plot one model at a time.
 #'@param col color ramp to use, a numeric value from 1 to 6. 1 = base, 2 =
 #'plasma, 3 = viridis, 4 = l17, 5 = r3, 6 = white-to-black. Default = 1.
