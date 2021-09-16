@@ -14,5 +14,5 @@ BiocManager::install("ggtree")
 
 For both quick and detailed tutorials on how to use Machuruku, please visit the [tutorial page](https://github.com/wxguillo/machuruku/tree/main/tutorial) in this repository.
 
-*Software citation and associated manuscript:* Guillory WG, Brown JL. 2021. A new method for integrating ecological niche modeling with phylogenetics to estimate ancestral distributions. Systematic Biology, syab016. [Link.](https://academic.oup.com/sysbio/advance-article-abstract/doi/10.1093/sysbio/syab016/6171196) (Email me at wxg1@rutgers.edu for PDF)
+*Software citation and associated manuscript:* Guillory WG, Brown JL. 2021. A new method for integrating ecological niche modeling with phylogenetics to estimate ancestral distributions. Systematic Biology, 70(5):1033-1045. [Link.](https://academic.oup.com/sysbio/advance-article-abstract/doi/10.1093/sysbio/syab016/6171196) (Email me at wxg1@rutgers.edu for PDF)
 ![frog logo](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/machurukuLogoShamelessFrog.jpg)
