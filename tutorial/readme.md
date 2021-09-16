@@ -155,6 +155,8 @@ This step takes your occurrence data and your present-day climate data, construc
 ```
 resp <- machu.1.tip.resp(occ, ClimCur, verbose = T)
 ```
+> The function will automatically assume that, in your `occ` object, the sample IDs are in column 1, the longitudes (x-coords) are in column 2, and the latitudes (y-coords) are in column 3. If your `occ` is formatted differently, you can either rearrange it or just specify which column is which with the `sp.col`, `long.col`, and `lat.col` arguments.
+
 Since `verbose = T`, R will print progress to the screen. It should finish very quickly. This is more useful when you have a lot of taxa or climate variables and you want a general idea of how long it takes to process each one. Printing `resp` to the screen will show this:
 ```
              bio_1_mean bio_1_stdev bio_1_skew bio_1_lowerQ bio_1_upperQ bio_12_mean bio_12_stdev bio_12_skew bio_12_lowerQ bio_12_upperQ
