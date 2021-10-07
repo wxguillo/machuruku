@@ -56,6 +56,9 @@ setwd("~/YOUR/DIRECTORY/STRUCTURE/tutorial")
 #### Loading tree
 There are a few ways to load trees into R. The most common is the `read.nexus()` function from the `ape` package. 
 ```
+# install.packages("ape")
+# library(ape) 
+# you may have to install and load ape separately
 bassleritree <- read.nexus("basslerigroup.treefile")
 ```
 For future purposes we might use another function, because this particular R object type doesn't store node height uncertainty information.
@@ -76,6 +79,9 @@ We can visualize the occurrence data in a minute, after we've loaded the climate
 #### Loading climate data
 The `raster()` function is necessary to load climate rasters into R. Go ahead and brute-force this, loading each raster individually:
 ```
+# install.packages("raster")
+# library(raster)
+# you may have to install and load the 'raster' package separately
 # current climate data
 bio1 <- raster("climate/current/bio_1.tif")
 bio12 <- raster("climate/current/bio_12.tif")
@@ -348,6 +354,9 @@ Another source of uncertainty in Machuruku comes from our time-calibrated tree i
 
 Many (if not all) programs used for divergence time estimation will provide each node with error bars that usually describe the 95% probability distribution of ages for that node. Our *bassleri* group tree was calibrated using [BEAST 2](https://www.beast2.org/), a popular Bayesian phylogenetics program. It comes with error bars called 95% Highest Posterior Density (HPD) intervals. (Maximum likelihood programs like RelTime will give you 95% confidence intervals.) However, when we load our tree with the `read.nexus()` function from `ape`, we lose that error bar information when the tree is converted to a Phylo object. So, we need to use another function: `read.beast()` from the [`treeio`](https://bioconductor.org/packages/release/bioc/html/treeio.html) package.
 ```
+# install.packages("treeio")
+# library(treeio)
+# you may have to install and load treeio separately
 # load tree as treedata object
 bassleribeast <- read.beast("basslerigroup.treefile")
 ```
@@ -359,7 +368,7 @@ The tree is now stored as a Treedata object, which contains all of the informati
 Now let's run the `machu.tree.unc()` function, which will take our tree and produce two additional trees using the 95% HPD intervals at each node: one tree where the node heights correspond to the upper 95% HPD limit, and another where they correspond to the lower. Then, let's use `machu.treeplot()` to visualize all three trees at once:
 ```
 trees <- machu.tree.unc(bassleribeast)
-machu.treeplot(trees, upperX = 3, timelabeloffset = 1.25, nodelabelcolor = "darkseagreen2")
+machu.treeplot(trees, upperX = 3, timelabeloffset = 1.25, nodecirclecolor = "darkseagreen2")
 ```
 ![3 trees](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/3trees.png?raw=true)
 
@@ -367,7 +376,7 @@ Three trees have been plotted on the same time scale. The top tree is our "lower
 
 So what's the point of this? We can use a single time-slice to illustrate why `machu.tree.unc()` might be useful.
 ```
-machu.treeplot(trees, upperX = 3, timelabeloffset = 1.25, nodelabelcolor = "darkseagreen2", timeslice = 2.49)
+machu.treeplot(trees, upperX = 3, timelabeloffset = 1.25, nodecirclecolor = "darkseagreen2", timeslice = 2.49)
 ```
 ![3 trees w/ time-slice](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/3trees%20w%20timeslice.png?raw=true)
 
@@ -476,7 +485,7 @@ In the case where we ran `machu.2.ace()` without specifying a time-slice, gettin
 # build present-day models for all taxa including ancestors
 mod.all <- machu.3.anc.niche(ace.all, ClimCur, verbose = T)
 par(mfrow=c(2,4))
-machu.plotmap(mod.all, color = inferno)
+machu.plotmap(mod.all)
 plot(bassleritree)
 ```
 ![7 models in current climate w/ tree](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/7%20mod.png?raw=true)
@@ -534,7 +543,7 @@ Again, the top two models are from `mod`, with `calc.unc = FALSE`, and the botto
 #### Limiting model area with inverse-distance weighting
 Often, niche models will recover areas obviously outside the known range of a species as suitable. While this can be useful, depending on the question it may be superfluous or misleading. To that end, we added a function called `machu.geo.idw` that uses inverse-distance weighting to restrict niche models to the areas surrounding the taxon's distribution. Essentially, this is a way for accounting for migration limitations by removing from consideration suitable areas that are nonetheless separated from the taxon's actual distribution by geographic barriers or other factors. An obvious hurdle for this function is that *we don't know* what the actual distributions of ancestral taxa were; figuring that out is the whole point of Machuruku in the first place. To (sort of) get around this, the user just specifies an extant taxon distribution (as occurrence data) to represent the ancestral taxon. This is obviously an imperfect system, but it's the best that can be done absent voluminous fossil data. The function is used as such:
 ```
-clip <- machu.geo.idw(mod[[2]], occ.rarefied, taxa = "silverstonei", buffer.dist = 100, kernel.size = 2, MCP.percent = 50)
+clip <- machu.geo.idw(mod[[2]], occ, taxa = "silverstonei", buffer.dist = 100, kernel.size = 2, MCP.percent = 50)
 ```
 > Note that here we're using `occ` rather than `occ.rarefied` because the latter only contains 3 occurrence points for *A. silverstonei* and the function needs at least 5 to work.
 
