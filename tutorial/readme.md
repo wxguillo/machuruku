@@ -1,7 +1,9 @@
-# Machuruku: the Tutorial
-Welcome! On this page I'll be walking you through using the R package I developed with [Jason Brown](https://www.jasonleebrown.org/), Machuruku. Machuruku is developed for modeling, reconstructing, and visualizing niches in past and present climates, while accounting for evolution. It is a spiritual successor to [previous](https://onlinelibrary.wiley.com/doi/pdf/10.1111/j.0014-3820.2004.tb00461.x) [implementations](https://www.journals.uchicago.edu/doi/full/10.1086/595757) of [phylogenetic](https://academic.oup.com/sysbio/article/55/5/785/1666006) [niche](https://link.springer.com/article/10.1186/1471-2148-6-72) [modeling](https://academic.oup.com/sysbio/article/59/3/322/1703086). However, our derivation of the methods and ideas in Machuruku was independent of these earlier studies. The main idea of Machuruku is to construct niches for every taxon in a time-calibrated phylogeny, reconstruct ancestral niches at each node, and project ancestral niches into current- or paleoclimatic data to create real-world estimates of the geographic origins of lineages. 
+# Machuruku: the Tutorial 2.0
+This is the updated tutorial coinciding with the release of Machuruku 2.0. I originally developed Machuruku ~2019 with [Jason Brown](https://www.jasonleebrown.org/), my MS advisor (2017-2020). After the release of the original version, we published [a paper](https://academic.oup.com/sysbio/article/70/5/1033/6171196) in Systematic Biology in 2021 describing the method. Machuruku was my first major R project and as such the original version bore some of the hallmarks of a novice R coder, along with some other quirks that continued to bother me as I moved on into a doctoral program. A couple years later in 2023, with much more coding experience under my belt, I decided to revisit Machuruku which quickly ballooned into rewriting the entire thing, both in service to my own projects and the community at large. The scope of the changes merits a nomenclatural leap to Machuruku version 2.0.
 
-First, I will provide a very quick guide to using Machuruku on a basic level. Then, I will do a deeper dive into the various functions provided and how they can assist you in accounting for uncertainty, performing better visualizations, and other tasks. 
+The purpose of Machuruku remains unchanged: the package is for modeling, reconstructing, and visualizing niches in past and present climates, while accounting for evolution. Machuruku reconstructs climatic niches along a time-calibrated phylogeny and can project these niches into paleoclimatic data to visualize the potential geographic origins of lineages. The advances provided by Machuruku 2.0 are mostly practical. For example, many of the for-loops I was previously reliant on have been replaced with apply statements, which offer significant boosts in computation speed. Also boosting speed is Machuruku's new integration with the [Terra](https://github.com/rspatial/terra) R package, a faster upgrade to its predecessor Raster. The workings of the various functions provided in the package have been streamlined to be more user-friendly and flexible. There is also a potentially significant conceptual change to the way Machuruku calculates and visualizes uncertainty in ancestral niche reconstructions, which I will discuss in greater detail later. 
+
+In this new tutorial, I will first provide a simple quick-start guide to using Machuruku 2.0 at its most basic. I then provide a deeper step-by-step dive into the each function and the possibilities they offer for reconstructing and visualizing ancestral niches. 
 ## Contents
 * [Introduction](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#introduction)
   * [Installing Machuruku](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#installing-machuruku)
@@ -10,25 +12,7 @@ First, I will provide a very quick guide to using Machuruku on a basic level. Th
     * [Loading occurrence data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#loading-occurrence-data)
     * [Loading climate data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#loading-climate-data)
 * [Quick-start Guide](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#quick-start-guide)
-  * [Estimating tip response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-tip-response-curves)
-  * [Estimating ancestral niches at a time-slice](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-ancestral-niches-at-a-time-slice)
-  * [Projecting ancestral models into paleoclimatic data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#projecting-ancestral-models-into-paleoclimatic-data)
-* [Detailed Guide](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#detailed-guide)
-  * [Estimating tip response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-tip-response-curves-1)
-    * [Accounting for spatial autocorrelation by rarefying occurrence data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-spatial-autocorrelation-by-rarefying-occurrence-data)
-    * [Visualizing climate response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#visualizing-climate-response-curves)
-  * [Estimating ancestral niches](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-ancestral-niches)
-    * [Estimating niches at a time-slice](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-niches-at-a-time-slice)
-    * [Estimating niches for all nodes](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-niches-for-all-nodes)
-    * [Accounting for uncertainty in ancestral character estimation](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-uncertainty-in-ancestral-character-estimation)
-    * [Accounting for uncertainty in divergence time estimation given one tree with error bars](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-uncertainty-in-divergence-time-estimation-given-one-tree-with-error-bars)
-    * [Accounting for uncertainty in divergence time estimation given a Bayesian posterior distribution of trees](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-uncertainty-in-divergence-time-estimation-given-a-bayesian-posterior-distribution-of-trees)
-    * [Saving and loading ace output](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#saving-and-loading-ace-output)
-  * [Projecting ancestral models into paleoclimatic data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#projecting-ancestral-models-into-paleoclimatic-data-1)
-    * [Clipping response curve tails to produce cleaner models](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#clipping-response-curve-tails-to-produce-cleaner-models)
-    * [Creating binary models](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#creating-binary-models)
-    * [Incorporating uncertainty from ancestral character estimation](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#incorporating-uncertainty-from-ancestral-character-estimation)
-    * [Limiting model area with inverse-distance weighting](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#limiting-model-area-with-inverse-distance-weighting)
+
 ## Introduction
 ### Installing Machuruku
 To install Machuruku, simply use the `install_github()` function from `devtools`:
@@ -42,118 +26,96 @@ library(machuruku)
 ```
 You can test if it worked by typing `machu` into the console (in RStudio) and seeing if all of the functions appear in autofill.
 ### Downloading and exploring tutorial data
-First off, go ahead and download the tutorial data I've provided in this repository. This consists of three files: 
-* `basslerigroup.treefile` - A nexus-formatted treefile containing the three members of the *Ameerega bassleri* group, a small clade of Amazonian dendrobatid poison frogs. This tree was time-calibrated in [BEAST 2](https://www.beast2.org/) and contains 95% HPD intervals for each node height (divergence time). It is a small subset of the UCE phylogeny of *Ameerega* presented in [Guillory et al. 2020](https://www.sciencedirect.com/science/article/pii/S1055790319304609), restricted to the *bassleri* group ([*Ameerega bassleri*](https://www.dendrobates.org/dendrobatoidea/dendrobatidae/colostethinae/ameerega/ameerega-bassleri/), [*pepperi*](https://www.dendrobates.org/dendrobatoidea/dendrobatidae/colostethinae/ameerega/ameerega-pepperi/), and [*yoshina*](https://www.dendrobates.org/dendrobatoidea/dendrobatidae/colostethinae/ameerega/ameerega-yoshina/)) plus [*A. silverstonei*](https://www.dendrobates.org/dendrobatoidea/dendrobatidae/colostethinae/ameerega/ameerega-silverstonei/), an in-genus outgroup taxon with a similar distribution.
-* `basslerigroup.csv` - Occurrence data for each species in our phylogeny, in decimal-degree format. The first column is the species ID (which must match that in the tree), the second is longitude (x), and the third is latitude (y). This format must be adhered to when using occurrence data in Machuruku.
-* `climate.zip` - A zipped file containing the climate data we will be using. If you unzip the file, you will get a folder called `climate/`, which in turn contains four subfolders: `current/`, `mis19/`, `mpwp/`, and `m2/`. These four subfolders correspond to a different time period (modern-day, Marine Isotope Stage 19 (Pleistocene; 0.787 Ma), Mid-Pliocene Warming Period (3.205 Ma), and Marine Isotope Stage M2 (Pliocene; 3.3 Ma). Inside each subfolder are two raster climate layers, formatted as tiffs: `bio_1.tif` and `bio_12.tif`. The tiffs represent climate data analogous to the bioclimatic layers from [Worldclim](https://www.worldclim.org/); each one is an aspect of climate that is believed to be important to organisms biologically, and are thus commonly used in ecological niche modeling. For space (and simplicity) reasons, I have restricted our dataset to just Bio1 (Mean Annual Temperature) and Bio12 (Annual Precipitation). Also, these two variables are highly uncorrelated, which is beneficial for our analyses anyway. The actual layers provided in `climate.zip` are taken from [PaleoClim](http://www.paleoclim.org/), a free set of paleoclimatic data from various time periods up to the Late Pliocene, formatted specifically for ease of use in niche modeling. Their extent is trimmed to an area surrounding the distributions of these four frogs. 
+I opted to provide the raw tutorial data in this repository rather than within the R package itself so that I can demonstrate how to load it. For now you will need 3 of the files: 
+* `basslerigroup.treefile` - A nexus-formatted treefile containing the three members of the *Ameerega bassleri* group, a small clade of Amazonian dendrobatid poison frogs. This tree was time-calibrated in [BEAST 2](https://www.beast2.org/) and contains 95% HPD intervals for each node height (divergence time). It is a small subset of the UCE phylogeny of *Ameerega* presented in [Guillory et al. 2020](https://www.sciencedirect.com/science/article/pii/S1055790319304609), restricted to the *bassleri* group (*Ameerega bassleri, pepperi,* and *yoshina*) plus *A. silverstonei*, an in-genus outgroup taxon with a similar distribution.
+* `basslerigroup.csv` - Occurrence data for each species in our phylogeny, in decimal-degree format. The first column is the species ID (which must match that in the tree), the second is longitude (x), and the third is latitude (y).
+* `climate.zip` - A zipped file containing the climate data we will be using. If you unzip the file, you will get a folder called `climate/`, which in turn contains four subfolders: `current/`, `mis19/`, `mpwp/`, and `m2/`. These four subfolders correspond to different time periods (present, Marine Isotope Stage 19 (Pleistocene; 0.787 Ma), Mid-Pliocene Warming Period (3.205 Ma), and Marine Isotope Stage M2 (Pliocene; 3.3 Ma). Each subfolder contains 14 raster climate layers from [Paleoclim](http://www.paleoclim.org/), which I've cropped to an area surrounding the *bassleri* group's distribution and reduced in resolution to save space.  
 
-To get started, go ahead and place these three files in a folder anywhere on your machine; I suggest simply calling it `tutorial/`. Unzip `climate.zip` inside of `tutorial/` to get the `climate/` folder.
+Download and place these three files in a folder anywhere on your machine, and unzip `climate.zip`. Load up R and set your working directory to this location with the `setwd()` function.
 
-Load up R and set your working directory to `tutorial/`. Use the `setwd()` function:
-```
-setwd("~/YOUR/DIRECTORY/STRUCTURE/tutorial")
-```
 #### Loading tree
-There are a few ways to load trees into R. The most common is the `read.nexus()` function from the `ape` package. 
+There are multiple ways to load trees in R, such as `ape::read.tree`, but here let's use `ape::read.nexus` to load in our time-calibrated phylogeny: 
 ```
-# install.packages("ape")
-# library(ape) 
-# you may have to install and load ape separately
-bassleritree <- read.nexus("basslerigroup.treefile")
+# load tree
+tree <- read.nexus("basslerigroup.treefile")
 ```
-For future purposes we might use another function, because this particular R object type doesn't store node height uncertainty information.
+Note that you shouldn't need to load in the ape package yourself, since it's exported in the namespace of machuruku already.
 
-You can simply use the `plot()` function to visualize the tree:
+Simply use `plot()` to visualize the tree:
 ```
-plot(bassleritree)
+plot(tree)
 ```
 ![plot() tree](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/plot%20tree.png?raw=true)
 
-As you can see, this shows you the relationships between the taxa and the relative branch lengths, but gives you no information as to the actual divergence times. Later we'll use functions designed to visualize these and other aspects of the tree to make it easier to tell what you're actually doing.
 #### Loading occurrence data
-Loading occurrence data is simple. Use the `read.csv()` or `read.delim()` function:
+Loading occurrence data is simple. Use the `read.csv` or `read.delim` function:
 ```
-occ	<- read.delim("basslerigroup.csv", h=T, sep=",")
+# load occurrence data
+occ <- read.csv("basslerigroup.csv")
 ```
 We can visualize the occurrence data in a minute, after we've loaded the climate data as well.
+
 #### Loading climate data
-The `raster()` function is necessary to load climate rasters into R. Go ahead and brute-force this, loading each raster individually:
+In Machuruku 2.0, I have mostly migrated the code to use the Terra function rather than its slower predecessor Raster. Terra is so much faster because, rather than trying to store the contents of a raster, which can get very large, on your machine's RAM, it simply reads them straight from the disk when need be. It also contains some new functions that can handle raster data more elegantly than the old Raster functions could. Here let's use `terra::rast`, the equivalent of the old `raster::raster`, to load our four climate datasets:
 ```
-# install.packages("raster")
-# library(raster)
-# you may have to install and load the 'raster' package separately
-# current climate data
-bio1 <- raster("climate/current/bio_1.tif")
-bio12 <- raster("climate/current/bio_12.tif")
+# load climate data
+current <- rast(list.files("climate/current", full.names=T))
+mis19 <- rast(list.files("climate/mis19", full.names=T))
+mpwp <- rast(list.files("climate/mpwp", full.names=T))
+m2 <- rast(list.files("climate/m2", full.names=T))
+```
+Let's visualize both the climate and the occurrence data. First plot the current-climate Bio1 raster, then the occurrence data, and finally a legend.
+```
+# plot climate
+plot(current$bio_1)
+# add occurrence data
+taxa <- unique(occ$species)
+cols <- c("cyan", "yellow", "red", "orange")
+for (i in taxa) points(subset(occ, species==i)$long, subset(occ, species==i)$lat, 
+                       col = cols[which(taxa==i)], 
+                       pch=19, cex=0.75)
+legend(x = "bottomleft", legend = taxa, col = cols, pch=19, bty="n")
+```
+![bio1 w/ points](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/bio1%20w%20pts.png?raw=true)
 
-# early pleistocene data
-bio1mis19 <- raster("climate/mis19/bio_1.tif")
-bio12mis19 <- raster("climate/mis19/bio_12.tif")
-
-# mid pliocene warm period
-bio1mpwp <- raster("climate/mpwp/bio_1.tif")
-bio12mpwp <- raster("climate/mpwp/bio_12.tif")
-
-# pliocene data
-bio1m2 <- raster("climate/m2/bio_1.tif")
-bio12m2 <- raster("climate/m2/bio_12.tif")
-```
-Then use `stack()` to *stack* layers from the same time period into a RasterStack object:
-```
-ClimCur <- stack(bio1, bio12)
-ClimMis19 <- stack(bio1mis19, bio12mis19)
-ClimMpwp <- stack(bio1mpwp, bio12mpwp)
-ClimM2 <- stack(bio1m2, bio12m2)
-```
-Run the following code block to plot the current-climate Bio1 raster, then show the occurrence data, coloring each species separately, and finally print a legend so we can tell what species the points correspond to.
-```
-# visualize raster layer
-plot(bio1)
-
-# visualize occurrence data w/ legend
-taxa <- c(as.character(unique(occ$species)))
-for (i in taxa){
-  points(subset(occ, species==i)$long_DD, subset(occ, species==i)$lat_DD, col = which(taxa==i)+3, pch=16, cex=0.75)
-}
-legend("topright", legend = c(as.character(unique(occ$species))), col = 4:8, pch=16)
-```
-![bio1 w/ points](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/bio1%20w%20pts.png?raw=true)
-
-Now we can see that the species' ranges do not really overlap, but are very close to each other. They evolved in a place with lots of topographic heterogeneity (the foothills of the Andes), which according to our theory promoted their diversification. We might be able to see some niche evolution in this group, since they occupy subtly different habitats.
+Now we can see that the species' ranges do not really overlap, but are very close to each other. They evolved in a place with lots of topographic heterogeneity (the foothills of the Andes), which probably promoted their diversification. We might be able to see some niche evolution in this group since they occupy subtly different habitats.
 ## Quick-start Guide
-Machuruku is composed of three principal steps that can be completed quickly. In this section I'll demonstrate these three steps without extraneous bells-and-whistles in case you don't feel like doing a deeper dive or are simply pressed for time. Let's set a phylogenetic niche modeling goal for ourselves: To see what the ancestors of the *bassleri* group and *A. silverstonei* were doing in the Late Pliocene, approximately 3.3 million years ago (the putative age of our M2 climate layers). What's important to note here is that it's highly unlikely that any of our nodes will exactly line up with the age of our paleoclimate data, e.g., none of the nodes will be 3.3 million years old. To accommodate this fact of life, Machuruku can interpolate ancestral niches along the branches subtending the desired time-slice. This can be kind of tricky to visualize, so Machuruku has a built-in function, `machu.treeplot()`, that can do it for us.
+Machuruku is composed of three principal steps. In this section I'll demonstrate them without any extraneous bells-and-whistles. Let's set a phylogenetic niche modeling goal for ourselves: To see what the ancestors of the *bassleri* group and *A. silverstonei* were doing in the Late Pliocene, approximately 3.3 million years ago (the putative age of our M2 climate layers). What's important to note here is that it's highly unlikely that any of our nodes will exactly line up with the age of our paleoclimate data, e.g., none of the nodes will be 3.3 million years old. To accommodate this, Machuruku can interpolate ancestral niches along the branches subtending the desired time-slice. This can be kind of tricky to visualize, so Machuruku has a built-in function, `machu.treeplot()`, that can do it for us.
 ```
-machu.treeplot(bassleritree, upperX = 2, timelabeloffset = 1, timeslice = 3.3)
+# visualize tree with timeslice at 3.3 Ma
+machu.treeplot(tree, timeslice=3.3)
 ```
-![treeplot 3.3](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/treeplot.png?raw=true)
+![treeplot 3.3](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/treeplot.png?raw=true)
 
 The time-slice at 3.3 Ma recovers *two* taxa, not the four at the tips, so we'll be making two ancestral niche models.
 ### Estimating tip response curves
-The first step in Machuruku is embedded in the `machu.1.tip.resp()` function (The principal functions of Machuruku are numbered to make it easy to remember what order to do them in). This step takes your occurrence data and your present-day climate data, constructs a Bioclim niche model for each taxon, and then characterizes the response of each taxon to each climate variable as a skew-normal distribution. 
+The first step in Machuruku is the `machu.1.tip.resp()` function. This function takes occurrence data and present-day climate data, constructs a Bioclim niche model for each taxon, and then characterizes the response of each taxon to each climate variable as a skew-normal distribution. 
 ```
-resp <- machu.1.tip.resp(occ, ClimCur, verbose = T)
-```
-Since `verbose = T`, R will print progress to the screen. It should finish very quickly. 
+# estimate tip response curves
+resp <- machu.1.tip.resp(occ, current)
+``` 
 ### Estimating ancestral niches at a time-slice
-The second step is using `machu.2.ace()` to estimate ancestral niches at our desired time-slice. This step takes your response table as input, along with information regarding your time-slice, among other desired parameters, and uses the `ace()` function from [`ape`](http://ape-package.ird.fr/) to estimate the niche parameters at each node, using a continuous-character implementation of ancestral character estimation, with Brownian motion as our evolutionary model. Since we specified a time-slice, the function will interpolate the models along whatever subtending branches are present at that time, and present those as the output.
+The second step is using `machu.2.ace()` to estimate ancestral niches at our desired time-slice. This step takes the response table and uses the `ace()` function from [Ape](http://ape-package.ird.fr/) to estimate the niche parameters for whatever taxa exist at our 3.3 Ma timeslice.
 ```
-ace <- machu.2.ace(resp, bassleritree, T=3.3)
+# estimate ancestral niches at timeslice
+ace <- machu.2.ace(resp, tree, timeslice=3.3, unc=T)
 ```
-This should finish almost immediately.
-> If you want to get ancestral niche models for each *node,* not interpolated along a branch, you can run `machu.2.ace()` without specifying a time-slice. I'll get into this more in my more detailed tutorial below.
-### Projecting ancestral models into paleoclimatic data
-The final major step is to use `machu.3.anc.niche()` to project the ancestral niche models estimated and parsed as `ace` into our M2 paleoclimate data. This step loops through each taxon in `ace` and constructs a Bioclim model in the provided paleoclimate data.
-```
-mod <- machu.3.anc.niche(ace, ClimM2, verbose = T)
-```
-Since `verbose = T`, R will print your progress to the screen. This process is usually the most time-consuming, but it should still take only a few seconds given our low taxon and climate variable count. The next thing to do is visualize these models, which we can do with a final function, `machu.plotmap()`.
-```
-par(mfrow=c(1,2))
-machu.plotmap(mod)
-```
-![2 maps](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/2%20mods.png?raw=true)
+The `unc=T` argument is used to incorporate ancestral character estimation uncertainty into the final models.
 
-There we go! We can see immediately that the ancestor of the *bassleri* group was probably more widespread. The more northern regions of suitable climate were probably unoccupied due to geographical constraints, but not climatological ones. 
+### Projecting ancestral models into paleoclimatic data
+The final major step is to use `machu.3.anc.niche()` to project the ancestral niche models into our 3.3 Ma paleoclimate data. This step loops through each taxon in `ace` and constructs a Bioclim model for it in the provided paleoclimate data.
+```
+# project ancestral niches into paleoclimate data
+mod <- machu.3.anc.niche(ace, m2)
+```
+This produces two ancestral niche models, one for each branch-taxon present at 3.3 Ma, and projected into our 3.3 Ma paleoclimate data. We can visualize the results with a final function, `machu.plotmap()`.
+```
+# visualize ancestral niches
+machu.plotmap(mod, plot="together")
+```
+![2 models](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/2%20models.png?raw=true)
+
+We can see that the ancestor of the *bassleri* group may have existed further to the south than the present distribution of the group. On the other hand, the ancestor of *silverstonei* seems constrained to its present-day distribution.
 ## Detailed guide
 In this section I'll take you through the process step-by-step again, but with much more detail so that you know what each option does, and also go into the various accessory functions that can aid visualization and account for various sources of bias and uncertainty (if you're paranoid). 
 ### Estimating tip response curves
