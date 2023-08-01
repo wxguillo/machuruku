@@ -111,7 +111,7 @@ mod <- machu.3.anc.niche(ace, m2)
 This produces two ancestral niche models, one for each branch-taxon present at 3.3 Ma, and projected into our 3.3 Ma paleoclimate data. We can visualize the results with a final function, `machu.plotmap()`.
 ```
 # visualize ancestral niches
-machu.plotmap(mod, plot="together")
+machu.plotmap(mod, plot="together", plot.asp=20/9, axes=F, to.scale=T)
 ```
 ![2 models](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/2%20models.png?raw=true)
 
