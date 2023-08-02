@@ -12,7 +12,25 @@ In this new tutorial, I will first provide a simple quick-start guide to using M
     * [Loading occurrence data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#loading-occurrence-data)
     * [Loading climate data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#loading-climate-data)
 * [Quick-start Guide](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#quick-start-guide)
-
+  * [Estimating tip response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-tip-response-curves)
+  * [Estimating ancestral niches at a time-slice](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-ancestral-niches-at-a-time-slice)
+  * [Projecting ancestral models into paleoclimatic data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#projecting-ancestral-models-into-paleoclimatic-data)
+* [Detailed Guide](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#detailed-guide)
+  * [Estimating tip response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-tip-response-curves-1)
+    * [Accounting for spatial autocorrelation by rarefying occurrence data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-spatial-autocorrelation-by-rarefying-occurrence-data)
+    * [Visualizing climate response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#visualizing-climate-response-curves)
+  * [Estimating ancestral niches](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-ancestral-niches)
+    * [Estimating niches at a time-slice](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-niches-at-a-time-slice)
+    * [Estimating niches for all nodes](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#estimating-niches-for-all-nodes)
+    * [Accounting for uncertainty in ancestral character estimation](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-uncertainty-in-ancestral-character-estimation)
+    * [Accounting for uncertainty in divergence time estimation given one tree with error bars](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-uncertainty-in-divergence-time-estimation-given-one-tree-with-error-bars)
+    * [Accounting for uncertainty in divergence time estimation given a Bayesian posterior distribution of trees](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#accounting-for-uncertainty-in-divergence-time-estimation-given-a-bayesian-posterior-distribution-of-trees)
+    * [Saving and loading ace output](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#saving-and-loading-ace-output)
+  * [Projecting ancestral models into paleoclimatic data](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#projecting-ancestral-models-into-paleoclimatic-data-1)
+    * [Clipping response curve tails to produce cleaner models](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#clipping-response-curve-tails-to-produce-cleaner-models)
+    * [Creating binary models](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#creating-binary-models)
+    * [Incorporating uncertainty from ancestral character estimation](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#incorporating-uncertainty-from-ancestral-character-estimation)
+    * [Limiting model area with inverse-distance weighting](https://github.com/wxguillo/machuruku/blob/main/tutorial/readme.md#limiting-model-area-with-inverse-distance-weighting)
 ## Introduction
 ### Installing Machuruku
 To install Machuruku, simply use the `install_github()` function from `devtools`:
@@ -34,9 +52,10 @@ I opted to provide the raw tutorial data in this repository rather than within t
 Download and place these three files in a folder anywhere on your machine, and unzip `climate.zip`. Load up R and set your working directory to this location with the `setwd()` function.
 
 #### Loading tree
-There are multiple ways to load trees in R, such as `ape::read.tree`, but here let's use `ape::read.nexus` to load in our time-calibrated phylogeny: 
+There are multiple ways to load trees in R, such as `ape::read.tree`, but here let's use `ape::read.nexus` to load in our time-calibrated phylogeny. Install Ape if you haven't already using `install.packages("ape")`, then run: 
 ```
 # load tree
+library(ape)
 tree <- read.nexus("basslerigroup.treefile")
 ```
 Note that you shouldn't need to load in the ape package yourself, since it's exported in the namespace of machuruku already.
@@ -56,9 +75,10 @@ occ <- read.csv("basslerigroup.csv")
 We can visualize the occurrence data in a minute, after we've loaded the climate data as well.
 
 #### Loading climate data
-In Machuruku 2.0, I have mostly migrated the code to use the Terra function rather than its slower predecessor Raster. Terra is so much faster because, rather than trying to store the contents of a raster, which can get very large, on your machine's RAM, it simply reads them straight from the disk when need be. It also contains some new functions that can handle raster data more elegantly than the old Raster functions could. Here let's use `terra::rast`, the equivalent of the old `raster::raster`, to load our four climate datasets:
+In Machuruku 2.0, I have mostly migrated the code to use the Terra function rather than its slower predecessor Raster. Terra is so much faster because, rather than trying to store the contents of a raster, which can get very large, on your machine's RAM, it simply reads them straight from the disk when need be. It also contains some new functions that can handle raster data more elegantly than the old Raster functions could. Here let's use `terra::rast`, the equivalent of the old `raster::raster`, to load our four climate datasets. Again, install Terra if you haven't already, then run:
 ```
 # load climate data
+library(terra)
 current <- rast(list.files("climate/current", full.names=T))
 mis19 <- rast(list.files("climate/mis19", full.names=T))
 mpwp <- rast(list.files("climate/mpwp", full.names=T))
@@ -116,89 +136,144 @@ machu.plotmap(mod, plot="together", plot.asp=20/9, axes=F, to.scale=T)
 ![2 models](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/2%20models.png?raw=true)
 
 We can see that the ancestor of the *bassleri* group may have existed further to the south than the present distribution of the group. On the other hand, the ancestor of *silverstonei* seems constrained to its present-day distribution.
-## Detailed guide
-In this section I'll take you through the process step-by-step again, but with much more detail so that you know what each option does, and also go into the various accessory functions that can aid visualization and account for various sources of bias and uncertainty (if you're paranoid). 
-### Estimating tip response curves
-This step takes your occurrence data and your present-day climate data, constructs a Bioclim niche model for each taxon, and then characterizes the response of each taxon to each climate variable as a skew-normal distribution. The distribution is parsed into five components (mean, standard deviation, skew, upper 95% confidence interval, and lower 95% confidence interval); the last two components are only used for a few accessory functions, so you can mostly ignore those. 
+## Detailed guide 
+### 1. Estimating tip response curves
+Given the occurrence data and present-day climate rasters, the first major step in Machuruku, `machu.1.tip.resp`, constructs niche models for each present-day taxon in the dataset, then characterizes the response of each taxon to each climate variable as a skew-normal distribution. First, the `dismo::bioclim` function is used to extract the climate values of each variable at each occurrence point for each species. Then, the `sn::selm` function fits a skew-normal distribution to each variable to describe the relationship between occurrence and climate (`fGarch::snormFit` was used before, but I found some issues with it; now the sn package is used throughout Machuruku). The skew-normal distribution is itself characterized by three components: mean, standard deviation, and skew (the upper and lower 95% confidence limits are no longer utilized). This is a modified version of the [Bioclim](https://onlinelibrary.wiley.com/doi/full/10.1111/ddi.12144) niche modeling algorithm (widely regarded as the first such algorithm), which uses uniform distributions for each variable instead of skew-normal. At its most basic, the function looks like this:
 ```
-resp <- machu.1.tip.resp(occ, ClimCur, verbose = T)
+### 1. estimate tip response curves
+resp <- machu.1.tip.resp(occ, current, verbose=T)
 ```
-> The function will automatically assume that, in your `occ` object, the sample IDs are in column 1, the longitudes (x-coords) are in column 2, and the latitudes (y-coords) are in column 3. If your `occ` is formatted differently, you can either rearrange it or just specify which column is which with the `sp.col`, `long.col`, and `lat.col` arguments.
+With the `verbose=T` option turned on, it will print the following output to the screen:
+```
+[1] "'clim' is a SpatRaster, attempting to convert to RasterStack for compatibility with dismo::bioclim..."
+[1] "Processed taxon bassleri"
+[1] "Processed taxon pepperi"
+[1] "Processed taxon silverstonei"
+[1] "Processed taxon yoshina"
+```
+On my machine this process took about 10 seconds to complete, the vast majority of it being the conversion of the SpatRasters to a RasterStack. `machu.1.anc.niche` will accept SpatRaster format, but will automatically convert it to the older RasterStack format for compatibility with `dismo::bioclim`. 
 
-Since `verbose = T`, R will print progress to the screen. It should finish very quickly. This is more useful when you have a lot of taxa or climate variables and you want a general idea of how long it takes to process each one. Printing `resp` to the screen will show this:
+To view the results for the first two climate variables, run `resp[,1:6]`:
 ```
-             bio_1_mean bio_1_stdev bio_1_skew bio_1_lowerQ bio_1_upperQ bio_12_mean bio_12_stdev bio_12_skew bio_12_lowerQ bio_12_upperQ
-bassleri       232.3243   16.700057  1.0000000      204.400      255.100    1380.014     289.9077   2.2902138        973.80      2058.400
-pepperi        245.1000   11.059938  1.0000000      226.450      258.325    1759.836     299.0108   0.8788606       1312.65      2251.700
-silverstonei   189.4364    6.815318  0.8878531      177.400      199.000    4569.632     634.5430   0.6909963       3443.60      5477.400
-yoshina        242.0000   14.929464  1.0000000      211.375      252.000    1616.009     250.0849 299.9526457       1285.00      2104.475
+             bio_1_mean bio_1_stdev  bio_1_skew bio_10_mean bio_10_stdev bio_10_skew
+bassleri       238.2260    18.64478   -1.987488    243.8598     18.48886   -1.893566
+pepperi        253.8157    19.63661 -183.446148    260.4739     20.25066 -183.446148
+silverstonei   183.9266    26.75841  183.446148    189.7586     26.46845  183.446148
+yoshina        249.0784    14.71177   -3.913331    254.3711     14.71131   -3.594554
 ```
-This is basically a bunch of named vectors glommed together. Each row corresponds to a taxon, and each column to a climate response parameter. Every set of five columns (mean, stdev, skew, lowerQ, and upperQ) corresponds to a different climate variable. Since we only have two climate variables (Bio1 and Bio12) and four taxa, our response table is pretty small.
+This "response table" shows the mean, standard deviation, and skew for each climate variable, for each taxon. We can visualize these distributions using the function `machu.respplot`:
+```
+# visualize response curves for two variables
+machu.respplot(resp, clim=c("bio_1", "bio_10"), plot="t")
+```
+![respplot1](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/respplot1.png?raw=true)
+
+The `machu.respplot` function (response-plot) can plot response curves in various combinations. Here I specify the first two climate variables in `resp` by name, as well as to plot the curves "together" in one window. The curves are nearly identical because the bio1 (mean annual temp) and bio10 (mean temp of warmest quarter) bioclimatic variables are very similar. To view the response curves for *every* climate variable, we can simply omit the `clim` argument:
+```
+# visualize response curves for all variables
+machu.respplot(resp, plot="t", legend.cex=0.6)
+```
+![respplot2](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/respplot2.png?raw=true)
+
+Another feature of `machu.1.anc.niche`, new to Machuruku 2.0, is the visualization of present-day niche models with `dismo::predict`. Activate this feature with the `plot` argument:
+```
+# visualize niche models
+machu.1.tip.resp(occ, current, plot="t")
+```
+![currentmodels1](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/currentmodels1.png?raw=true)
+
+This is similar to `machu.respplot` where `plot="t"` (equivalent to `plot="together"`) will show every map in one window. You can also add the occurrence points to confirm that the estimated niche model lines up with the known distribution of the species:
+```
+dev.off()
+machu.1.tip.resp(occ, current, plot="s", plot.points=T)
+```
+![currentmodels2](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/currentmodels2.png?raw=true)
+
+Here `dev.off()` is used to reset the plot window. The `plot="s"` (equivalent to `plot="separately"`) option shows every map in its own window; here I'm only showing the first one for *A. bassleri*. 
+
+Finally, the function can also output these niche models instead of the response table with the `output.bioclim` option. This can be useful if you'd like to plot, save, or analyze the present-day niche models for each species on your own. 
+```
+mod <- machu.1.tip.resp(occ, current, output.bioclim=T)
+par(mfrow=c(2,2), mar=c(0,0,2,0))
+lapply(1:4, function(x) plot(mod[[x]], axes=F, legend=F, box=F, main=names(mod)[x]))
+```
+![currentmodels3](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/currentmodels3.png?raw=true)
+
+The output `mod` is a list where each element is a RasterLayer; the `lapply` function loops through each one and plots it after setting up a 2x2 plotting window with `par`.
 #### Accounting for spatial autocorrelation by rarefying occurrence data
-A classic issue in niche modeling (and other practices that utilize occurrence data) is that occurrence data is almost always spatially biased in some way, usually due to our imperfect human natures. When we go collecting organismal specimens out in the field, we tend to hover around roads, field stations, and cities. Why? Because it's easier that way. However, this has the unfortunate side-effect of biasing our spatial data around these locations - a phenomenon called spatial autocorrelation. This will in turn bias the niche modeling algorithm, because it'll assume that since you have more points in these areas, the species in question must like something about them more. For this reason, it can be important to "rarefy" your spatial data, essentially removing points that are clustered by a certain distance, so that you have a more even spread of points. In Machuruku, we have provided a function, `machu.occ.rarefy()` that does this for you (this function is identical to one included in the R package [`humboldt`](https://github.com/jasonleebrown/humboldt), also by Jason Brown).
+Occurrence data are often spatially autocorrelated due to systematic biases in the way we collect specimens, i.e. they tend to be clustered in easily accessible locations. Spatial autocorrelation can induce downstream impacts on niche modeling, necessitating the use of algorithms to "rarefy", or thin, occurrence data beforehand. In Machuruku, the function `machu.occ.rarefy` can do this for you. 
 ```
-occ.rarefied <- machu.occ.rarefy(in.pts = occ, rarefy.dist = 10)
+# rarefy occurrence data
+occ.r <- machu.occ.rarefy(occ, rarefy.dist=10, plot=T)
 ```
-The function will tell you that we have gone from 67 to 29 points after rarefication. If you look at `occ.rarefied`, you'll see that we now have 14 *bassleri* points, 6 each for *pepperi* and *yoshina*, and only 3 for *silverstonei*! However, this isn't as big of a problem as you might think.
-> The niche modeling algorithm we use will work with any number of points as long as it is greater than 1. Of course, more points are always better, as long as they aren't spatially biased. 
+The `rarefy.dist` option specifies the amount of rarefication to perform; in my example, I've set it to 10 km (the default unit; decimal degrees are also available with `rarefy.units="dd"`) such that all points must be at least 10 km from any other point. Adjust this value to fit the spatial scale of your data. Also, the `plot=T` option (new for Machuruku 2.0) visualizes the extent of rarefication performed:
+![rarefied](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/rarefied.png?raw=true)
 
-The `rarefy.dist` argument will need to be adjusted depending on your dataset; our points are all very constrained geographically so we use a fairly low value, and still have over a 50% reduction in points. Larger values for `rarefy.dist` will retain fewer points.
+The function will tell you that we have gone from 73 to 33 points after rarefication. However, there is a problem: `occ.r` contains fewer than 10 occurrence data points for all species except *bassleri* now. The `selm` function that `machu.1.tip.resp` uses to fit a skew-normal distribution to the climate responses requires at least 10 points for each taxon. The best solution is simply to find more occurrence data ([GBIF](https://www.gbif.org/) is a great resource), but `machu.1.tip.resp` will automatically generate random occurrence points up to n=10 for each taxon that requires them. The random points are selected from within a minimum convex polygon surrounding the occurrence points for each species. This is a decent solution for species with a single contiguous range; less so for those with strongly disjunct distributions. 
+If we run `machu.1.tip.resp` again, with `occ.r`, the function will generate random points. 
+```
+resp <- machu.1.tip.resp(occ.r, current, plot="t", plot.points=T, verbose=T)
+```
+It will warn us that it is doing so:
+```
+[1] "The following taxa have fewer than 10 occurrence points: pepperi, silverstonei, yoshina"
+[1] "Warning: adding random points up to n=10 for each of these species, contained within MCP defined by points."
+[1] "'clim' is a SpatRaster, attempting to convert to RasterStack for compatibility with dismo::bioclim..."
+[1] "Plotting all plots together. n2mfrow chose 2 rows and 2 columns based on an aspect ratio of 16/9"
+[1] "Processed taxon bassleri"
+[1] "Processed taxon pepperi"
+[1] "Processed taxon silverstonei"
+[1] "Processed taxon yoshina"
+```
+When the function plots the niche models and occurrence points, the randomly generated points are highlighted in red:
+![currentmodels4](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/currentmodels4.png?raw=true)
 
-Let's plot our map of Peru again, with the pre-rarefication points in black, and the rarefied points layered on top in color, so we can see exactly what was removed:
+Additionally, the saved output `resp` is a list containing both the normal output (in this case, a response table) as well as the modified occurrence data table with a new column `"rand"` specifying which points were randomly generated. 
+#### Selecting the most important climate variables
+Another important task to do prior to creating the present-day niche models with `machu.1.top.env` is to reduce the climate dataset. Multiple correlated climate rasters being provided to the niche modeling algorithm can induce downstream biases just as spatial autocorrelation in the occurrence data can. Machuruku contains the function `machu.top.env` for identifying the most important climate variables for each taxon by constructing generalized boosted regression niche models. There are three algorithms for selecting the best variables: "contribution", "nvars", and "estimate". 
+The "contribution" method only retains those variables that contribute more than x% of relative importance to each species. This is the default algorithm. The default minimum relative importance, specified by `contrib.greater`, is 5%. 
 ```
-# plot rarefied points
-par(mfrow=c(1,1))
-plot(bio1, axes = F, xlim = c(-78, -74), ylim = c(-10,-5))
-points(occ$long_DD, occ$lat_DD, pch = 16, cex = 0.75)
-taxa <- c(as.character(unique(occ.rarefied$species)))
-for (i in taxa){
-  points(subset(occ.rarefied, species==i)$long_DD, subset(occ.rarefied, species==i)$lat_DD, col = which(taxa==i)+3, pch=16, cex=0.75)
-}
-legend("topright", legend = c(as.character(unique(occ$species))), col = 4:8, pch=16)
+# select most important climate variables
+# contribution method
+micv.contrib <- machu.top.env(occ.r, current, method="contrib", contrib.greater=5, verbose=T)
 ```
-![rarefied points](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/bio%201%20rare.png?raw=true)
+This prints progress to the screen; the function takes a bit of time to run. It requires occurrence data and present-day climate data to construct the niche models with. For occurrence data, I've provided the spatially rarefied output from before, so as not to introduce bias into the niche models the function constructs. For climate data, I've provided the same SpatRaster `current`, which the function has to convert to a RasterStack for compatibility. Once the function is finished, running `micv.contrib' displays which variables were retained:
+```
+[1] "bio_1"  "bio_11" "bio_12" "bio_13" "bio_14" "bio_15" "bio_16" "bio_18" "bio_19" "bio_4"  "bio_8"  "bio_9"
+```
+This is 12 of the 14 starting variables, which is probably too many. If we want a specific number of the "best" variables, we can use the "nvars" algorithm. 
+```
+# nvars method
+micv.nvars <- machu.top.env(occ.r, current, method="nvars", nvars.save=7, verbose=T)
+```
+The default value of `nvars.save`, which specifies the number of best variables to retain, is 5; here I've set it to 7. Running `micv.nvars` displays the seven variables retained:
+```
+[1] "bio_4"  "bio_15" "bio_18" "bio_14" "bio_16" "bio_13" "bio_12"
+```
+The final algorithm is "estimate", which chooses the number of best variables by systematically removing variables until average change in the model exceeds the original standard error of deviance explained. This algorithm is more computationally intensive than the others and takes longer to finish. 
+```
+micv.est <- machu.top.env(occ.r, current, method="estimate", verbose=T)
+```
+On my machine, it took a minute or two to finish. Running `micv.est` displays the variables retained:
+```
+[1] "bio_1"  "bio_11" "bio_12" "bio_13" "bio_14" "bio_15" "bio_16" "bio_17" "bio_18" "bio_19" "bio_4"  "bio_8"  "bio_9"
+```
+In this case it retained 13 of the 14 original variables, which also isn't very helpful. Here I personally found the "nvars" method most useful, so I'm going to reduce the climate variable set to just those, and use this reduced set for the rest of the tutorial.
+```
+# reduce climate datasets to only most important variables
+current.reduced <- current[[micv.nvars]]
+mis19.reduced <- mis19[[micv.nvars]]
+mpwp.reduced <- mpwp[[micv.nvars]]
+m2.reduced <- m2[[micv.nvars]]
+```
+It's important to make sure that all time periods have the same set of climate variables. Next I'll re-run `machu.1.tip.resp` using the newly reduced climate dataset, as well as the spatially rarefied occurrence data from before.
+```
+# re-run tip response table with reduced climate dataset and rarefied occurrence data
+resp <- machu.1.tip.resp(occ.r, current.reduced, plot="t", plot.points=T)
+```
+![currentmodels5](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/currentmodels5.png?raw=true)
 
-I used the `xlim` and `ylim` parameters in `plot()` to zoom in so that you can see the points more clearly. All of the visible black points were removed; we can see that they are all clustered very tightly around the colored points - probably because the people that collected those data (read: us) were spending all day at a single site, instead of spreading their effort equally throughout the frogs' distributions.
-
-Let's use our new `occ.rarefied` dataset to re-run our `machu.1.tip.resp()` analysis. 
-```
-resp <- machu.1.tip.resp(occ.rarefied, ClimCur, verbose = T)
-```
-If you look at `resp`, you'll notice that the climate response values are somewhat different than before, because we made niche models using different occurrence data. These models should be less biased due to spatial autocorrelation.
-#### Visualizing climate response curves
-If you're interested in visualizing these nebulous "climate response curves", there's a function for that, too. `machu.respplot()` is a flexible function that can show you how each taxon responds to individual climate variables in a variety of ways.
-```
-machu.respplot(resp)
-```
-![response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/resp%20curves.png?raw=true)
-
-If you don't specify any taxa, climate variables, or other parameters, `machu.respplot()` will just plot all of them. (Note that if you have lots of taxa or climate variables, it may not work!) This works for combinations, too, so you can plot all taxa for one climate variable, or all climate variables for one taxon. There are also aesthetic parameters to change the way the lines look. For instance, if we want to just see how *A. bassleri* responds to the two climate variables, we can specify:
-```
-machu.respplot(resp, taxa = "bassleri", linewidth = 2, linecolor = "coral3")
-```
-![bassleri response curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/bassleri%20resp.png?raw=true)
-
-You can also use the index of your taxa to specify them in particular combinations, if you don't feel like typing out their names:
-```
-machu.respplot(resp, taxa = c(1,4), clim = "bio_1", linewidth = 2, linecolor = "coral3")
-```
-![bassleri & yoshina curves](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/bassleri%20and%20yoshina%20curves.png?raw=true)
-
-We can see that *yoshina* has a *much* more skewed response to Bio1 than *bassleri* here. However, it can be kind of difficult to directly compare the response curves between two species this way, since they're plotted on different axes and in different panels. That's where the `comb` argument comes in:
-```
-machu.respplot(resp, taxa = c(1,4), clim = "bio_1", linewidth = 2, comb = T)
-```
-![bio1 combined](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/bio1%20comb.png?raw=true)
-
-Using `comb = TRUE` allows us to compare response curves for each species directly. Below, we can look at all species and all climate variables at once:
-```
-machu.respplot(resp, linewidth = 2, comb = T, legend.pos = "topright")
-```
-![all variables combined](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/all%20vars%20comb.png?raw=true)
-
-Right away, we can see some differences between the *bassleri* group and *A. silverstonei.* You can tell that these two lineages evolved in different climatic regimes; *silverstonei* tends to inhabit cooler climates (it's lower in Bio1) and rainier ones (it's higher in Bio12). The three members of the *bassleri* group are more clustered, which makes sense since they're much more closely related—but they've each evolved subtly different niches.
-
-`machu.respplot` also works with the output of `machu.2.ace()`, if you want to see how extant species compare to their ancestors in this way. Visualizing lineages along with their ancestors and relatives can lead to some pretty cool insights.
+These new models are actually somewhat broader than the previous ones (this is especially visible with *yoshina*), as we've removed some of the noise from the climate dataset. The models will be slightly different anyway since we re-sampled new random occurrence points to get to 10 for each species. Now we're ready to move to the ancestral character estimation step.
 ### Estimating ancestral niches
 The second step is using `machu.2.ace()` to estimate ancestral niches at our desired time-slice. This step takes your response table as input, along with information regarding your time-slice, among other desired parameters, and uses the `ace()` function from [`ape`](http://ape-package.ird.fr/) to estimate the niche parameters at each node, using a continuous-character implementation of ancestral character estimation, with Brownian motion as our evolutionary model. You can choose to specify a time-slice, in which case the function will interpolate the models along the branches subtending that time-slice, or you can choose to simply return a model for each node.
 #### Estimating niches at a time-slice
