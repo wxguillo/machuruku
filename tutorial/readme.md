@@ -376,193 +376,147 @@ machu.respplot(ace.ts.u[[1]], clim="bio_12")
 ![respplot4](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/respplot4.png?raw=true)
 
 When uncertainty values are passed to this function, it automatically plots the 27 skew-normal distributions formed by the different parameter combinations. There isn't a ton of variability in this case, so the default `fill=F` actually makes it easier to see. Node1-*silverstonei* is very constrained, while Node3-*bassleri* and Node3-*yoshina* have more variation. Thick dotted lines are drawn to show the median distribution for each taxon that would be used were `unc=F`. 
-#### Characterizing uncertainty in divergence times
+#### Characterizing uncertainty in divergence times from a single tree
+Another source of uncertainty in the Machuruku pipeline comes from the time-calibrated phylogeny itself. Just like estimates of a character value at each node, the timing of the node itself is uncertain, more so for older nodes. Dealing with this in Machuruku is, perhaps, "not my job", but I wrote a function to do it anyway. `machu.tree.unc` takes a time-calibrated phylogeny, or a Bayesian posterior distribution of phylogenies, and produces two additional phylogenies, one in general older than the input, one in general younger, that characterize the uncertainty in divergence times and can be used as separate inputs for `machu.2.ace`. 
 
-Let's confirm that our output contains the ancestral taxa that we'd expect. Remember that Mis19 corresponds to the third time-slice pictured above, so we'd expect four ancestral taxa. The `ace.mis19` output looks like this:
+The `machu.tree.unc` function has two modes depending on the input. If the input is a single tree, it produces the two additional trees from the divergence time uncertainty contained in the tree file (i.e., the error bars). If the input is a posterior distribution of trees, it produces the two additional trees from the corresponding distribution of tree-heights; more detail on this mode later. For the former, single-tree mode, a different type of input is necessary than what we've been using, which is the "phylo" format from Ape. Phylo format does not record divergence time uncertainty data, even if the read-in input file contains it. Instead, we have to use the "treedata" format from the package [Treeio](https://bioconductor.org/packages/release/bioc/html/treeio.html), which does record this information in "tibble" format (part of the Tidyverse world).
 ```
-$bio_1_mean
-                name branch_start branch_end    value
-1     Node7-bassleri            7          1 229.7862
-2      Node7-yoshina            7          4 233.7089
-3      Node6-pepperi            6          2 240.4937
-4 Node5-silverstonei            5          3 192.6381
+# characterize divergence time uncertainty
+# reload tree as 'treedata' object
+library(treeio)
+beast <- read.beast("basslerigroup.treefile")
+```
+The `treeio::read.beast` function creates a treedata object. Running `beast` will display the tibble containing the divergence time uncertainty data; they are stored in the "`height_0.95_HPD`" column, which we can view in compact form by running `do.call(rbind, as_tibble(beast)$height_0.95_HPD)`:
+```
+         [,1]         [,2]
+[1,] 0.000000 7.105427e-15
+[2,] 0.000000 7.105427e-15
+[3,] 0.000000 7.105427e-15
+[4,] 0.000000 7.105427e-15
+[5,] 7.112935 1.620734e+01
+[6,] 1.312191 4.255582e+00
+[7,] 1.030775 3.665719e+00
+```
+Each row in this makeshift table represents the upper and lower 95% HPD (highest posterior density; analogous to a confidence interval) limits for each tip and node in the tree. The first four rows represent the tips; they are essentially zero since it doesn't make sense for present-day taxa to have any divergence time uncertainty. The last three rows represent the nodes; the left column is the lower 95% HPD limit, and the right column is the upper 95% HPD limit. `machu.tree.unc` uses these values to construct the additional trees, essentially setting the node heights of the trees equal to these 95% HPD limits.
 
-$bio_1_stdev
-                name branch_start branch_end    value
-1     Node7-bassleri            7          1 16.15572
-2      Node7-yoshina            7          4 13.93988
-3      Node6-pepperi            6          2 14.06111
-4 Node5-silverstonei            5          3 13.88672
-...
+Note that this function is only tested and designed for outputs from a few programs: [BEAST](https://www.beast2.org/) and BEAST-adjacent software such as [SNAPP](https://www.beast2.org/snapp/) (specifically the consensus output produced by TreeAnnotator), and the RelTime method implemented in [MEGA](https://www.megasoftware.net/). Other programs may produce incompatible outputs; let me know and I can try to include them.
 ```
-(I've only shown the first two elements of the list, to save space.) We can see that the output is formatted as a list, where each element corresponds to one of the climatic response parameters (e.g., a column from the output of `machu.1.tip.resp()`). Each element is a table, where the value for that parameter is shown for each taxon. Each row corresponds to a taxon; we see right away that each table has four rows, so Machuruku got the right number of taxa at this time period. 
-> Also shown are the nodes/tips that lie on either side of (subtend) the branch that that taxon represents (`branch_start` is the older one and `branch_end` is the newer one). The numbers refer to node and tip IDs that are encoded into the tree when it is imported by the `read.nexus()` function. The tips are given IDs first, as 1-through-4 (or however many taxa you have). The nodes are then added; in this case, there are 3 nodes, so the nodes are given IDs 5-through-7. Referring to these numbers in conjunction with a tree visualization from `machu.treeplot()` can help you get your bearings in the tree.
+# run tree-uncertainty utility from a single input tree
+beast.trees <- machu.tree.unc(beast)
+```
+Running `names(beast.trees)` shows the names of the three trees output by `machu.tree.unc`:
+```
+[1] "lCItree"   "inputtree" "uCItree"
+```
+The first tree, `"lCItree"` (lower confidence interval tree) has node heights based on the first column of the above table; the second tree, `"inputtree"` is the same as the input tree `beast` and represents the median node heights; the third tree `"uCItree"` (upper confidence interval tree) has node heights based on the second column of the above table. Running `beast.trees` itself will show the structure of the output:
+```
+$lCItree
 
-Let's check one of the Pliocene outputs, because for these (the first two time-slices in the figure above), we'd expect two taxa each.
-```
-$bio_1_mean
-                name branch_start branch_end    value
-1        Node5-Node6            5          6 232.5243
-2 Node5-silverstonei            5          3 197.6712
+Phylogenetic tree with 4 tips and 3 internal nodes.
 
-$bio_1_stdev
-                name branch_start branch_end    value
-1        Node5-Node6            5          6 14.62475
-2 Node5-silverstonei            5          3 13.97985
-...
-```
-These are the first two elements of `ace.mpwp`. We can see that there are now two taxa retained, one along the branch leading from node 5 to node 6 (the ancestor of the *bassleri* group), and one leading from node 5 to *A. silverstonei.*
-#### Estimating niches for all nodes
-Let's say you're not interested in a particular time-slice, but you want to compare the niches at each node in a phylogeny with the niches of the tips (descendant taxa) in the same climate-space. This can be easily accomplished simply by running `machu.2.ace` without specifying a time-slice.
-```
-ace.all <- machu.2.ace(resp, bassleritree)
-```
-The output of this, `ace.all`, will provide us with niche models for the nodes, as well as retaining those of the tips (to make it easy to compare them later):
-```
-$bio_1_mean
-          name      time NA    value
-1     bassleri  0.000000 NA 228.1429
-2      pepperi  0.000000 NA 243.3333
-3 silverstonei  0.000000 NA 191.0000
-4      yoshina  0.000000 NA 234.1507
-5        Node5 11.577178 NA 215.0977
-6        Node6  2.710415 NA 233.5538
-7        Node7  2.267554 NA 232.8777
+Tip labels:
+  bassleri, pepperi, silverstonei, yoshina
 
-$bio_1_stdev
-          name      time NA    value
-1     bassleri  0.000000 NA 16.87901
-2      pepperi  0.000000 NA 13.82269
-3 silverstonei  0.000000 NA 13.85641
-4      yoshina  0.000000 NA 13.48532
-5        Node5 11.577178 NA 14.30230
-6        Node6  2.710415 NA 14.64380
-7        Node7  2.267554 NA 14.79502
-...
-```
-These are the first two elements of `ace.all`. There are seven taxa, the first four of which are the extant taxa (bearing no difference from their values in `resp`), and the last three are each of the nodes; Node5 is the root node, Node6 is the immediate common ancestor of the *bassleri* group, and Node7 is the common ancestor of *A. bassleri* and *A. yoshina*. 
-> Rather than tell you about branch starts and ends, this output shows you the age of each taxon. The third `NA` column is a placeholder (four columns are required in this output).
+Rooted; includes branch lengths.
 
-We can visualize how these taxa have evolved in climate space with respect to each climate variable by using `machu.respplot()`:
-```
-machu.respplot(ace.all, comb = T, legend.pos = "topright")
-```
-![visualization of ancestors](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/ancestor%20vis.png?raw=true)
+$inputtree
 
-There's a lot to see in this plot, partially occluded by the legend. But right away we can see how Node5, the putative common ancestor of the *bassleri* group and *A. silverstonei*, occupied an intermediate climate space between these two descendants. (Of course, including all ~32 *Ameerega* species in our analyses would change these results quite a bit!)
-#### Accounting for uncertainty in ancestral character estimation
-As any good phylogeneticist will tell you (and a bunch of classic papers), using ancestral character estimation (=ancestral state reconstruction) can be fraught because of the uncertainty inherent in this technique, and our assumptions that evolution is essentially happening randomly (Brownian motion). Absent any other information, these seem like fine null assumptions, so there is not much we can do. But if you wish, Machuruku can take some of the uncertainty inherent in ancestral character estimation into account when constructing niche models in the final step. This is actually a recommended approach for our program, as it'll lead to less stringent and more interpretable models. You can activate this feature by using the `n.unc` argument and specifying a number:
-```
-ace.M2.unc <- machu.2.ace(resp, bassleritree, T = 3.3, n.unc = 4)
-```
-Note that here we're taking a time-slice corresponding for our M2 paleoclimate data. What the `n.unc = 4` specification does is take `n.unc` evenly-spaced samples of the 95% confidence intervals surrounding the median reconstructed value. If you look at `ace.M2.unc`, you can see that there are a bunch of new columns, each corresponding to one of these samples:
-```
-$bio_1_mean
-                name branch_start branch_end    value     unc1     unc2     unc3     unc4
-1        Node5-Node6            5          6 232.3266 220.9530 228.5354 236.1177 243.7001
-2 Node5-silverstonei            5          3 197.8689 190.8343 195.5240 200.2138 204.9035
+Phylogenetic tree with 4 tips and 3 internal nodes.
 
-$bio_1_stdev
-                name branch_start branch_end    value     unc1     unc2     unc3     unc4
-1        Node5-Node6            5          6 14.62110 12.92806 14.05675 15.18544 16.31413
-2 Node5-silverstonei            5          3 13.98351 12.93633 13.63445 14.33256 15.03068
-...
-```
-There is still the `value` column, with the median value, and after that, four (`n.unc`) columns of samples from the 95% confidence interval distribution. The first of these columns (`unc1`) is essentially the lower 95% confidence limit, and the last (`unc4`) is the upper limit. `unc2` and `unc4` will be evenly spaced between the limits. Imagine that each of these columns represents an independent niche model, at a certain part of the distribution of possible models. Basically, in step 3, you'd be constructing 4 (in this case) independent niche models, then summing and rescaling them. This accounts for uncertainty much better than simply using the median.
-#### Accounting for uncertainty in divergence time estimation given one tree with error bars
-Another source of uncertainty in Machuruku comes from our time-calibrated tree itself. In a phylogeny, there are going to be two main areas where uncertainty occurs: the topology, and the branch lengths. We can't do a lot about the topology here - if you aren't certain about the topology of your tree, just run Machuruku on two or more trees with slightly different topologies. For uncertainty in branch lengths, which for a time-calibrated tree corresponds to divergence times, we can do something, though.
+Tip labels:
+  bassleri, pepperi, silverstonei, yoshina
 
-Many (if not all) programs used for divergence time estimation will provide each node with error bars that usually describe the 95% probability distribution of ages for that node. Our *bassleri* group tree was calibrated using [BEAST 2](https://www.beast2.org/), a popular Bayesian phylogenetics program. It comes with error bars called 95% Highest Posterior Density (HPD) intervals. (Maximum likelihood programs like RelTime will give you 95% confidence intervals.) However, when we load our tree with the `read.nexus()` function from `ape`, we lose that error bar information when the tree is converted to a Phylo object. So, we need to use another function: `read.beast()` from the [`treeio`](https://bioconductor.org/packages/release/bioc/html/treeio.html) package.
-```
-# install.packages("treeio")
-# library(treeio)
-# you may have to install and load treeio separately
-# load tree as treedata object
-bassleribeast <- read.beast("basslerigroup.treefile")
-```
-The tree is now stored as a Treedata object, which contains all of the information regarding node heights (and more) from the original file. 
-> To extract this information for your own purposes, use the construct `bassleribeast@data$height` (for example) or convert the tree to a "Tibble" object using the `as_tibble()` function.
+Rooted; includes branch lengths.
 
-> Currently I have only ensured that `machu.tree.unc()` only works with output from BEAST 2. Because of the way RelTime stores its node height data, it will not work with this function absent some significant changes.
+$uCItree
 
-Now let's run the `machu.tree.unc()` function, which will take our tree and produce two additional trees using the 95% HPD intervals at each node: one tree where the node heights correspond to the upper 95% HPD limit, and another where they correspond to the lower. Then, let's use `machu.treeplot()` to visualize all three trees at once:
-```
-trees <- machu.tree.unc(bassleribeast)
-machu.treeplot(trees, upperX = 3, timelabeloffset = 1.25, nodecirclecolor = "darkseagreen2")
-```
-![3 trees](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/3trees.png?raw=true)
+Phylogenetic tree with 4 tips and 3 internal nodes.
 
-Three trees have been plotted on the same time scale. The top tree is our "lower confidence interval" (LCI) tree, the middle tree is our median starting tree, and the bottom tree is our "upper confidence interval" (UCI) tree. The node heights of the LCI and UCI trees have been pushed backwards or forwards to match the corresponding confidence limits of the median tree. The three trees are stored together in a list (for us, called `trees`) that contains them as its elements: `LCI tree`, `input tree`, and `UCI tree`.
+Tip labels:
+  bassleri, pepperi, silverstonei, yoshina
 
-So what's the point of this? We can use a single time-slice to illustrate why `machu.tree.unc()` might be useful.
+Rooted; includes branch lengths.
 ```
-machu.treeplot(trees, upperX = 3, timelabeloffset = 1.25, nodecirclecolor = "darkseagreen2", timeslice = 2.49)
+The output is a list where each element is one of the three trees discussed above. We can visualize these trees all at once using `machu.treeplot`:
 ```
-![3 trees w/ time-slice](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/3trees%20w%20timeslice.png?raw=true)
+# visualize trees
+machu.treeplot(beast.trees, timeslice=c(0.787,3.205,3.3), nodelabsize=0.5, timelaboffset=-0.15, col="skyblue")
+```
+![3trees](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/3trees.png?raw=true)
 
-If you are time-slicing the phylogeny in a certain place, you may recover different branch-taxa depending on the heights of the nodes. In the LCI tree (top), we are getting two taxa: Node5-Node6 and Node5-silverstonei. In the median input tree, we are getting three: Node6-Node7, Node6-pepperi, and Node5-silverstonei. And in the UCI tree (bottom), we get four: Node7-yoshina, Node7-bassleri, Node6-pepperi, and Node5-silverstonei. These will dramatically change your ancestral niche modeling results, because you're literally making niche models for a different number of taxa. The idea is to construct these additional trees, and then run Machuruku for them three separate times, and compare the results. That would look something like this:
+This figure illustrates why one may want to use the different trees output from `machu.tree.unc` as input to `machu.2.ace`. When the trees have different node heights, the same timeslice can cut through different branches. In this figure, the two older timeslices (corresponding to the m2 and mpwp paleoclimate datasets) slice through two branch-taxa (Node1-Node2 and Node1-*silverstonei*) in the first two trees (the lCI and input trees). However, in the third tree (the uCI tree), they slice through four branch-taxa. If we re-run `machu.2.ace` with these new trees and take a single timeslice at 3.3 Ma, we see that the output `ace.uCItree` contains data for two branch-taxa, and the others contain data for four.
 ```
-ace.LCI <- machu.2.ace(resp, as.phylo(trees$`LCI tree`), T = 2.49)
-ace.input <- machu.2.ace(resp, as.phylo(trees$`input tree`), T = 2.49)
-ace.UCI <- machu.2.ace(resp, as.phylo(trees$`UCI tree`), T = 2.49)
+# re-run machu.2.ace with the new trees for comparison
+ace.lCItree <- machu.2.ace(resp, beast.trees$lCItree, timeslice=3.3)
+ace.inputtree <- machu.2.ace(resp, beast.trees$inputtree, timeslice=3.3)
+ace.uCItree <- machu.2.ace(resp, beast.trees$uCItree, timeslice=3.3)
+# count number of taxa in each of the new outputs
+c(nrow(ace.lCItree[[1]]), nrow(ace.inputtree[[1]]), nrow(ace.uCItree[[1]]))
 ```
-Note that we need to use the `as.phylo` function to convert the treedata objects stored in the `trees` list to get them to work properly. If you look at each of the three objects we made, you'll see that `ace.LCI` has two taxa, `ace.input` has three, and `ace.UCI` has four - just as we predicted.
-> You may be wondering why we characterize divergence time uncertainty this way and not by utilizing the whole posterior distribution of trees, or a "tree cloud", where nearly every possible tree within the 95% HPD intervals is represented. The short answer is that this is perhaps a good idea, but we don't think it particularly useful because of our emphasis on visualization. We can't really think of a way to visualize a "cloud" of reconstructed niches that is easy to interpret, especially since for a particular time-slice you'd have all manner of taxa present in different trees.
+The output of the last line is `2 2 4`, which is what we expect.
+#### Characterizing uncertainty in divergence times from a posterior distribution of trees
+The other mode of `machu.tree.unc` is activated when the input is a posterior distribution of trees, i.e. the raw output of a Bayesian phylogenetics program like [BEAST](beast2.org), rather than a single consensus tree from TreeAnnotator as used previously. In the previous version of Machuruku, this mode was contained in the separate function `machu.trees.unc`; for Machuruku 2.0 I've combined them into a single function. Some users may want to use this mode instead of the previous one because it has greater flexibility and may characterize the divergence time uncertainty more accurately. Unlikely the previous mode, this mode actually returns trees that were directly computed by the original Bayesian software.
 
-#### Accounting for uncertainty in divergence time estimation given a Bayesian posterior distribution of trees
-Very astute readers may notice that the above method for accounting for divergence time uncertainty isn't perfect, because the two additional trees constructed by the `machu.tree.unc` function are *chimeric,* meaning their node-height information comes from multiple trees that were ultimately summarized by TreeAnnotator when we turned the Bayesian posterior distribution of trees into a single summary tree (that we then imported into R with `read.beast`). Because of this, the additional trees are not ultrametric, e.g. the different paths from root to tip are not the same length (though they are close); we solve this problem using the `force.ultrametric` function from [`phytools`](http://blog.phytools.org/). 
-
-If this bugs you, there is yet another function for accounting for uncertainty in divergence time estimation: `machu.trees.unc`. It's called *trees* as opposed to *tree* because this time the input is an entire posterior distribution of trees, as is commonly output from most Bayesian phylogenetics programs (for this reason, `machu.trees.unc` should work with output from programs other than BEAST, as well). Because these posterior distributions can contain thousands or even millions of trees, using them in R can be next to impossible. For this reason, `machu.trees.unc` works *without* loading the trees into R; you just call the file location instead:
+Because a posterior can contain thousands or even millions of trees, loading it all into R's memory would be a bad idea. Instead, simply specify by name a NEXUS file that contains the posterior distribution. You can download the file "posterior.trees" from the tutorial repository and examine the format to make sure the function will work with your data (the function is untested with other formats and almost certainly won't work). Essentially, each separate tree in the distribution is written on a separate line near the end of the file; the top of the file contains the list of taxa and a translation table giving each taxon name a numeric ID that appears in the trees to save space. The example file "posterior.trees" is a heavily truncated version of the output from our [2020 paper](https://www.sciencedirect.com/science/article/pii/S1055790319304609) on *Ameerega* phylogenetics, containing all of the taxa in the study but just 19 trees for the sake of computational speed. Place it in your tutorial folder and run the following:
 ```
-trees <- machu.trees.unc("posterior.trees")
+# run tree-uncertainty utility from a posterior
+post.trees <- machu.tree.unc("posterior.trees")
 ```
-Similarly to `machu.tree.unc`, this function will output a list of three trees, only this time the trees are actually sampled directly from the posterior, contained in the example file `posterior.trees`. This file is called simply as a text string and contains a very small "posterior distribution" of 19 trees from our [Guillory et al. 2020](https://www.sciencedirect.com/science/article/pii/S1055790319304609) *Ameerega* paper, with 35 taxa in each tree (1 per *Ameerega* species). Using `machu.treeplot` again, we can visualize the trees like so:
+As `verbose=T` by default, the function will provide some progress updates as it works:
 ```
-machu.treeplot(trees, upperX = 7, tiplabelsize = 2.5,
-               timelabeloffset = 1.01, timelabelsize = 2,
-               nodecirclecolor = "darkseagreen2", nodecirclesize = 5, nodelabelsize = 3)
+[1] "Multiple trees in file 'posterior.trees' detected. Burnin: 0.1; Confidence level: 0.95"
+[1] "FIRST PASS: Calculating trees to remove at 10% burnin."
+[1] "Found 19 trees, skipping the first 2 under 10% burnin."
+[1] "SECOND PASS: Calculating 95% HPD of tree heights at 10% burnin."
+[1] "95% HPD min: 182.44; Median: 282.65; 95% HPD max: 348.88; from 17 trees under 10% burnin."
+[1] "THIRD PASS: Finding trees with closest heights to 95% HPD limits and median at 10% burnin."
 ```
-![3 trees from machu.trees.unc](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/machu%20trees.png?raw=true)
+This also describes how the algorithm actually works. The function conducts three passes through the dataset, loading each tree directly from the file one at a time to save memory. The first pass simply counts the number of trees in the dataset and calculates how many to remove based on the `burnin` parameter. Removing some trees from the beginning of the posterior is a common practice because the MCMC algorithms that Bayesian phylogenetics software use take a while to converge (i.e. "burn in") so the first x% of the distribution may be inconsistent with the rest; by default the `burnin` parameter is set to 0.1 (i.e., discarding the first 10% of the posterior). 
 
-The function works by loading each tree in the file one at a time in a series of three passes. The first pass simply counts how many trees are present, and then calculates the number to be skipped at a desired burn-in level (by default this is set to 10%, rounded up; in our case, with 19 trees, the first 2 trees were skipped). 
-> Burn-in refers to the phenomenon where generally a chain of posterior samples takes a while to stabilize around a certain value, so when summarizing the posterior (as in the program TreeAnnotator, etc.), the first X% of samples are generally ignored. In `machu.trees.unc`, the exact burn-in percentage ignored can be specified with the `burnin` parameter, by default set to 0.1 (=10%).
+The function's second pass skips the first 10% of trees (when `burnin=0.1`) and calculates the tree height for each one (i.e., the distance from the root to the tip) to produce a distribution of tree heights. It then calculates the 95% HPD limits of this distribution; in our example, the lower 95% HPD limit was 182.44 and the upper one was 348.88. The confidence level can be set with the `conf` parameter, which by default is 0.95. Setting it lower will return trees closer to the median tree; on the other hand setting `conf=1` will identify the most extreme trees.
 
-The second pass then calculates the distribution of tree-heights in the posterior (i.e., it calculates tree-height for every tree), and then calculates the 95% HPD interval and mean of this tree-height distribution. The third and final pass identifies those trees with tree-heights closest to the upper and lower 95% HPD limits and average, and puts them into the output list (`trees` in our case).
-> Much like the burn-in percentage, the HPD confidence limit percentage can also be manipulated using the `conf` parameter, which is by default set to 0.95 (=95%). To identify the most extreme trees (min and max heights), you would simply set `conf = 1`. However, these are likely to be total outliers and not very useful for your project.
+In the third pass, the function then identifies which trees have heights closest to the HPD limits and median, and returns these in a list similar to the other mode of `machu.tree.unc`. We can visualize these trees again with `machu.treeplot`:
+```
+# visualize trees
+machu.treeplot(post.trees, timelabs=F, nodelabs=F)
+```
+![3bigtrees](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/3bigtrees.png?raw=true)
 
+These trees are much larger than the ones we've been using (they contain all *Ameerega* species, not just the *bassleri* group), so I've set `timelabs=F` and `nodelabs=F` to reduce clutter. Similarly to before, the top tree is the lCI tree, the middle one is the median tree, and the bottom tree is the uCI tree.
 #### Saving and loading ace output
-We also provide a function that allows you to save your `machu.2.ace()` output to an external file and reload it for later. If you use the `savename` parameter in the `machu.2.ace()` function:
+Because the output of `machu.2.ace` in Machuruku 2.0 is now formatted differently, as a list, the output when saved to a CSV file is also different. You can save output from `machu.2.ace` simply by specifying a filename with the `csv.name` parameter (this was called `savename` before Machuruku 2.0):
 ```
-# save machu.2.ace() output
-ace.all <- machu.2.ace(resp, bassleritree, savename = "ace_all")
+# save ace output
+ace.ts <- machu.2.ace(resp, tree, timeslice=c(0.787,3.205,3.3), csv.name="ace_ts.csv")
 ```
-Machuruku will save the output as a comma-separated value file called `ace_all.csv`. This can be opened in Excel or whatever program you like to use, if you want. If you load it back into R with `read.csv`, it looks like this:
+A CSV file called "ace_ts.csv" has been saved to your working directory (`getwd()`). We can examine its structure by viewing the first 7 columns with `read.csv("ace_ts.csv")[,1:7]`:
 ```
-    X         name      time NA.        value       climvar
-1   1     bassleri  0.000000  NA 2.281429e+02    bio_1_mean
-2   2      pepperi  0.000000  NA 2.433333e+02    bio_1_mean
-3   3 silverstonei  0.000000  NA 1.910000e+02    bio_1_mean
-4   4      yoshina  0.000000  NA 2.341138e+02    bio_1_mean
-5   5        Node5 11.577178  NA 2.150910e+02    bio_1_mean
-6   6        Node6  2.710415  NA 2.335421e+02    bio_1_mean
-7   7        Node7  2.267554  NA 2.328640e+02    bio_1_mean
-8   8     bassleri  0.000000  NA 1.687901e+01   bio_1_stdev
-9   9      pepperi  0.000000  NA 1.382269e+01   bio_1_stdev
-10 10 silverstonei  0.000000  NA 1.385641e+01   bio_1_stdev
-11 11      yoshina  0.000000  NA 1.351322e+01   bio_1_stdev
-12 12        Node5 11.577178  NA 1.430706e+01   bio_1_stdev
-13 13        Node6  2.710415  NA 1.465221e+01   bio_1_stdev
-14 14        Node7  2.267554  NA 1.480499e+01   bio_1_stdev
-...
+         scenario              taxon branch_start branch_end bio_4_mean bio_4_stdev bio_4_skew
+1 timeslice_0.787     Node3-bassleri            7          1   488.8174    61.24433  45.763683
+2 timeslice_0.787      Node3-yoshina            7          4   464.7665    45.17915 159.722456
+3 timeslice_0.787      Node2-pepperi            6          2   561.1887    17.35599 165.743824
+4 timeslice_0.787 Node1-silverstonei            5          3   602.4069    53.03126   8.241115
+5 timeslice_3.205        Node1-Node2            5          6   514.5594    40.36691 119.605293
+6 timeslice_3.205 Node1-silverstonei            5          3   591.3218    51.43320  22.293585
+7   timeslice_3.3        Node1-Node2            5          6   514.9949    40.42969 119.053189
+8   timeslice_3.3 Node1-silverstonei            5          3   590.8863    51.37041  22.845688
 ```
-(I've only printed the first 14 lines.) As you can see, the structure of the .csv is quite different than the `ace.all` object, which was a list where each element was a table with the values of each separate climate response parameter for each taxon. Here, it's been reformatted so that the `climvar` column takes the place of separating each parameter into its own element of a list. The issue is that, for this to actually be useful, we need to be able to load the output back into Machuruku. We can use the function `machu.ace.load()` here:
+Each row in this table represents a single taxon. The first column lists the timeslice of each taxon (called a "scenario" for generality), and the second column lists the taxon name. The remaining columns contain the same data we saw before with the `machu.2.ace` output. Saving these files may be important for reproducibility and other custom analyses.
+
+Loading the CSV file into R and trying to put it into the `machu.3.anc.niche` for downstream analysis will not work because it's formatted differently than the `machu.2.ace` output. To load a saved `machu.2.ace` output, use the function `machu.ace.load`:
 ```
-# load ace_all.csv
-ace.all <- machu.ace.load("ace_all.csv")
+# load ace output
+ace.ts <- machu.ace.load("ace_ts.csv")
 ```
-If you look at `ace.all` here, you'll see it's identical to the original and formatted correctly as a list.
-### Projecting ancestral models into paleoclimatic data
-The final major step in Machuruku is to use `machu.3.anc.niche()` to project the ancestral niche models estimated and parsed by `machu.2.ace()` into paleoclimate data. This step loops through each taxon in the `machu.2.ace()` output and constructs a Bioclim model in the provided paleoclimate data. Here I'm projecting our `ace.M2` models, consisting of two taxa interpolated to 3.3 Ma, into the M2 climate data:
+Examining `ace.ts` will show that the loaded file is now in its proper format and ready for downstream analysis.
+### 3. Projecting ancestral niche models into paleoclimate
+The final major step in Machuruku is to use `machu.3.anc.niche` to project the ancestral niche models estimated by `machu.2.ace` into paleoclimate data. For each taxon in each timeslice, the function calculates suitability in the timeslice's associated paleoclimate data by reconstructing a skew-normal distribution for each paleoclimate variable with the `sn::dsn` function. Various parameters and input schemes modify this basic blueprint in various ways. The major advance for Machuruku 2.0 is in allowing the input of multiple timeslices and paleoclimate layers at once, and in the new method of characterizing uncertainty in the ancestral niche.
+#### Projecting multiple timeslices into multiple paleoclimates
+Because it has been rewritten as a series of nested `lapply` statements, `machu.3.anc.niche` can now handle multiple timeslices and multiple paleoclimates as input. 
+
+
+
+This step loops through each taxon in the `machu.2.ace()` output and constructs a Bioclim model in the provided paleoclimate data. Here I'm projecting our `ace.M2` models, consisting of two taxa interpolated to 3.3 Ma, into the M2 climate data:
 ```
 mod <- machu.3.anc.niche(ace.M2, ClimM2, verbose = T)
 ```
