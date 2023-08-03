@@ -274,26 +274,109 @@ resp <- machu.1.tip.resp(occ.r, current.reduced, plot="t", plot.points=T)
 ![currentmodels5](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/currentmodels5.png?raw=true)
 
 These new models are actually somewhat broader than the previous ones (this is especially visible with *yoshina*), as we've removed some of the noise from the climate dataset. The models will be slightly different anyway since we re-sampled new random occurrence points to get to 10 for each species. Now we're ready to move to the ancestral character estimation step.
-### Estimating ancestral niches
-The second step is using `machu.2.ace()` to estimate ancestral niches at our desired time-slice. This step takes your response table as input, along with information regarding your time-slice, among other desired parameters, and uses the `ace()` function from [`ape`](http://ape-package.ird.fr/) to estimate the niche parameters at each node, using a continuous-character implementation of ancestral character estimation, with Brownian motion as our evolutionary model. You can choose to specify a time-slice, in which case the function will interpolate the models along the branches subtending that time-slice, or you can choose to simply return a model for each node.
-#### Estimating niches at a time-slice
-If you skipped the quick-start guide, you may be wondering what I mean by a "time-slice". Imagine a phylogeny lined up on a timescale; cut a slice through it perpendicular to that scale, and count how many branches the slice cuts through, and note which nodes or tips lie on either end of these branches. Time-slicing may be necessary because, while a phylogeny is a continuous-time construct, your paleoclimate data is dated to a particular point-estimate of time, e.g. your phylogeny may span 0-5 Ma, while your paleoclimate data is dated at 3 Ma. This inconsistency can make it difficult to tell what exactly to project into that paleoclimate data, since it's unlikely any of your phylogeny's nodes will be at exactly 3 Ma. If you take a time-slice through the phylogeny at 3 Ma, this problem is solved. To visualize time-slices through our tutorial tree, each corresponding to the age of our four climate datasets, run the following:
+### 2. Estimating ancestral niches
+#### Visualizing timeslices
+The second major step in Machuruku is using `machu.2.ace` to estimate ancestral niches for a set of taxa along the phylogenetic tree. The primary inputs are the tree and the response table from `machu.1.tip.resp`. The function uses the `ape::ace` to estimate the climate response parameters (mean, stdev, skew) for each climate variable at each node with Brownian motion. There are two possible outputs: the reconstructed values for every node in the tree (along with the tips, which remain unchanged from the `resp` input), or reconstructed values at one or more timeslices. If a timeslice is specified, `machu.2.ace` will identify whatever branches existed at that point in time, and interpolate the climate response values from the nodes or tips at either end of the branch to that point. To visualize this, use the function `machu.treeplot` and specify the dates of our three paleoclimate datasets for the `timeslice` parameter.
 ```
-machu.treeplot(bassleritree, upperX = 2, timelabeloffset = 1, timeslice = c(0,0.787,3.205,3.3))
+# visualize time-slices
+dev.off()
+options(warn=-1)
+machu.treeplot(tree, timeslice = c(0.787,3.205,3.3))
 ```
-![tree w time slices](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/time%20slices.png?raw=true)
+Use `dev.off()` to clear the plot window and `par` parameters, then use `options(warn=-1)` to turn off warnings since this function tends to generate ones that don't really matter. For the `timeslice` option, I've specified a `c` vector with the putative ages (in Ma) of each of our paleoclimate datasets. Here is the result:
 
-The current-climate, furthest to the right, simply cuts through the tips; Mis19, 0.787 Ma old (Pleistocene), recovers each of the four immediate ancestors of the extant taxa (perhaps effectively the same (chrono)species); Mpwp, second from the left (3.205 Ma), and M2, first on the left (3.3 Ma), both Late Pliocene, are very close together, but this was a period of intense climatic change so the two datasets are actually quite different. The two Pliocene time-slices recover two ancestral lineages (the ancestor of the *bassleri* group and the immediate ancestor of *A. silverstonei*). The former "taxon" would be called "Node5-Node6", and the latter "Node5-silverstonei". 
-> The `upperX` and `timelabeloffset` arguments in `machu.treeplot()` are just there to fit the tree to the window, so YMMV with these parameters. This is just due to how [`ggtree`](https://bioconductor.org/packages/release/bioc/html/ggtree.html), the package the function uses to visualize the tree, works. There are also aesthetic parameters to change the colors and line-type of the time-slice, but really I recommend exporting the image (as PDF) and editing it in a vector editor like Illustrator or Inkscape if you want to use it in a publication.
+![treeplot1](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/treeplot1.png?raw=true)
 
-To run `machu.2.ace()` with a time-slice, simply call it using the `T` argument:
+This looks pretty good, but there are a lot of graphical options in `machu.treeplot` that can be tweaked to make the figure look better. 
 ```
-# run one time-slice for each time period
-ace.mis19 <- machu.2.ace(resp, bassleritree, T=0.787)
-ace.mpwp <- machu.2.ace(resp, bassleritree, T=3.205)
-ace.M2 <- machu.2.ace(resp, bassleritree, T = 3.3)
+machu.treeplot(tree, timeslice = c(0.787,3.205,3.3), x.l.lim = 13, x.u.lim=-3, nodelabsize = 0.35, col = "skyblue", timelaboffset = -0.2)
 ```
->Note that here I've done one run for each of the three paleoclimatic datasets. I've also used the version of `resp` that was derived from rarefied occurrence data, so you won't get the same results if you aren't using that one.
+Here I manually changed the vertical size of the window to make the tree more compact, and adjusted the horizontal scaling with the `x.l.lim` and `x.u.lim` parameters to better fill the space. This necessitated adjusting the size of the circles at each node with `nodelabsize`, and adjusting the position of the time labels with `timelaboffset`. Finally, I changed the color of the timeslice lines to "skyblue" with `col`, just for fun.
+
+![treeplot2](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/treeplot2.png?raw=true)
+
+The `machu.treeplot` function was previously based in the ggtree R package, but this caused some issues with the code and often required a separate installation, so for Machuruku 2.0 the function is now based mostly in the [phytools](http://blog.phytools.org/) package. The function will automatically select a scale and tick mark scheme based on the order of magnitude of the age of the tree, and in general produces cleaner results. 
+
+There are three timeslices visible: two near 3 Ma, which are the m2 and mpwp paleoclimate datasets, and one near 0.7 Ma, which is the mis19 dataset. The two older timeslices "slice through" two branches: the one from node 1 to *silverstonei*, and the one from node 1 to node 2. The more recent mis19 timeslice "slices through" four branches: node1-*silverstonei*, node2-*pepperi*, node3-*yoshina*, and node3-*bassleri*. As such, when projecting ancestral niche models into the m2 or mpwp dataset, there should only be two ancestral niche models, one for each of these ancestral "branch-taxa", and when projecting into the mis19 dataset, there should be four. The `machu.2.ace` function takes care of this.
+#### Estimating ancestral niches at timeslices
+To run `machu.2.ace` with one or more timeslices, specify the `timeslice` argument:
+```
+# estimate ancestral niches at timeslices
+resp <- resp[[2]]
+ace.ts <- machu.2.ace(resp, tree, timeslice=c(0.787,3.205,3.3))
+```
+The first line of code is simply reassigning `resp` to solely the response table, to minimize confusion. The `machu.2.ace` function takes two primary inputs: the response table (`resp`) and a time-calibrated phylogeny (`tree`). The tree must be ultrametric (i.e., all tips at the same height), and the names at each tip must match the taxa in the response table exactly (the function will make these checks for you). The `timeslice` argument is identical to that from `machu.treeplot`. 
+
+The ability to specify multiple timeslices is a significant improvement for Machuruku 2.0. In the previous version only one time-slice at a time was possible, necessitating calling the function in a for loop or other repeating construct if one wanted to use multiple timeslices. This was enabled by re-coding the function as a series of nested `lapply` statements; as such the output of `machu.2.ace` is now formatted as a list, where each element corresponds to one timeslice. Running `ace.ts` shows this; each element is named after a timeslice. Running `names(ace.ts)` shows:
+```
+[1] "timeslice_0.787" "timeslice_3.205" "timeslice_3.3"
+```
+Let's examine this output more closely. Running `ace.ts[[1]][,1:8]` shows the first eight columns of the first element, "`timeslice_0.787`" (mis19):
+```
+                   branch_start branch_end bio_4_mean bio_4_stdev bio_4_skew bio_15_mean bio_15_stdev bio_15_skew
+Node3-bassleri                7          1   488.8174    61.24433   45.76368    24.84982     3.640581    24.50394
+Node3-yoshina                 7          4   464.7665    45.17915   159.7225    23.44164     7.757321    141.1891
+Node2-pepperi                 6          2   561.1887    17.35599   165.7438    29.50367     2.949623    15.94719
+Node1-silverstonei            5          3   602.4069    53.03126   8.241115    40.01165     5.556379   -174.4965
+```
+Each row in this table corresponds to a "branch-taxon" (the same ones visualized by the third (rightmost) line in the `machu.treeplot` images above). The first two columns give the indices of the nodes or tips at either end of the branch-taxon's branch, and subsequent columns represent climate response parameters for two climate variables, Bio4 (temperature seasonality) and Bio15 (precipitation seasonality). These values were linearly interpolated from the values at the nodes or tips at either end of the branch; for a timeslice exactly halfway between two nodes, the interpolated parameter value would be halfway between the nodes' values. 
+
+Moving on to the second timeslice, "`timeslice_3.205`" (mpwp), running `ace.ts[[2]][,1:8]` shows that there are only two branch-taxa in this timeslice. We already knew this from visualizing the tree and timeslices with `machu.treeplot` before.
+```
+                   branch_start branch_end bio_4_mean bio_4_stdev bio_4_skew bio_15_mean bio_15_stdev bio_15_skew
+Node1-Node2                   5          6   514.5594    40.36691   119.6053    27.01833     4.706292    43.41313
+Node1-silverstonei            5          3   591.3218     51.4332   22.29359    38.37208      5.44911   -146.9995
+```
+#### Estimating ancestral niches at each node
+The alternative mode of `machu.2.ace` is returning ancestral niche parameters for each node, instead of those branch-taxa at one or more timeslices. This is simply accomplished by omitting the `timeslice` argument:
+```
+# estimate ancestral niches at each node
+ace.n <- machu.2.ace(resp, tree)
+```
+The output of this function is a list with a single element called `"tips_and_nodes"`. This name is important in triggering downstream effects in the `machu.3.anc.niche` function. Running `ace.n[[1]][,1:7]` allows us to examine the output as before:
+```
+                 times bio_4_mean bio_4_stdev bio_4_skew bio_15_mean bio_15_stdev bio_15_skew
+bassleri      0.000000   483.4028   69.894895   8.911683    24.38023     2.883884    4.735996
+pepperi       0.000000   581.1957    8.074401 183.446148    30.65780     2.239828    2.407736
+silverstonei  0.000000   606.0149   53.551384   3.667379    40.54528     5.591293 -183.446148
+yoshina       0.000000   446.5674   45.290139 183.446148    22.22352     9.188911  183.446148
+Node1        11.577178   552.9404   45.900022  70.949409    32.69519     5.077696  -51.792643
+Node2         2.710415   512.2920   40.040041 122.479628    26.68297     4.684351   49.037393
+Node3         2.267554   499.0037   44.970337 115.091966    25.73324     5.064125   61.692618
+```
+The `"tips_and_nodes"` table contains 7 rows: 4 for the tips and 3 for the nodes. The climate response values for the tips are identical to those from the response table; they are included in the `machu.2.ace` output for the sake of comparison with the nodes. The first column `times` shows the divergence time for each node; this can be useful when deciding which paleoclimate dataset to project a certain node's ancestral niche model into. 
+
+We can visualize the evolution of climatic responses along the tree with the `machu.respplot` function, which works with the output of `machu.2.ace` as well as `machu.1.tip.resp`. 
+```
+# visualize niche evolution
+machu.respplot(ace.n[[1]], clim="bio_12", fill=T)
+```
+![respplot3](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/respplot3.png?raw=true)
+
+Here I've just visualized the Bio12 variable, annual precipitation, which is most intuitive to look at. I've also specified `fill=T` (a new option for Machuruku 2.0) to fill in the space beneath each response curve and make them easier to see. In this case we can see that *silverstonei* prefers climates with higher precipitation, while the actual members of the *bassleri* group are clustered at the lower end of the spectrum. The interesting part is how the nodal taxa's climate responses are intermediate between these two extremes.
+#### Characterizing uncertainty in ancestral niche estimation
+The values offered by ancestral character estimation algorithms like `ace` are subject to considerable uncertainty, which increases further back in time. Relying on a single point estimate of a given value may be too precise for some to stomach, especially for something as nebulous as the standard deviation of a species' response to precipitation. To that end, Machuruku 2.0 includes a new method of characterizing this uncertainty to produce more conservative estimates of the ancestral niche. If the user specifies `unc=T`, `machu.2.ace` retains the upper and lower 95% confidence intervals for each parameter, provided by `ace`. When passed to `machu.3.anc.niche` later on, these "uncertainty values" produce broader, less specific ancestral niche models. 
+```
+# include uncertainty
+ace.ts.u <- machu.2.ace(resp, tree, timeslice=c(0.787,3.205,3.3), unc=T)
+```
+Other than including `unc=T`, this command is the same as two sections ago where we took 3 timeslices of the tree. Running `ace.ts.u[[1]][,1:8]` shows how `unc=T` changes the `machu.2.ace` output:
+```
+                   branch_start branch_end bio_4_mean bio_4_mean_lCI bio_4_mean_uCI bio_4_stdev bio_4_stdev_lCI bio_4_stdev_uCI bio_4_skew bio_4_skew_lCI bio_4_skew_uCI
+Node3-bassleri                7          1   488.8174       457.3668        520.268    61.24433        47.95568        74.53297   45.76368       14.31306       77.21431
+Node3-yoshina                 7          4   464.7665       433.3159       496.2171    45.17915         31.8905        58.46779   159.7225       128.2718       191.1731
+Node2-pepperi                 6          2   561.1887       532.6862       589.6913    17.35599        6.146849        29.39901   165.7438       137.2413       194.2464
+Node1-silverstonei            5          3   602.4069       586.6109        618.203    53.03126        53.46503        59.70547   8.241115      -7.554937       24.03717
+```
+Columns 3 through 8 are the climate response values for a single climate variable, Bio4. Each original parameter (mean, stdev, skew) now has an additional two columns directly following it, "`lCI`" (lower confidence interval) and "`uCI`" (upper confidence interval). The original parameter values represent the medians. When this output is passed to `machu.3.anc.niche` later on, the function detects the presence of these uncertainty values and automatically incorporates them into the analysis. Rather than use a single skew-normal distribution for a given climate variable, the function takes *every combination* of median, lCI, and uCI values for each parameter, constructs a skew-normal distribution describing the relationship of suitability and climate for each combination, converts these to direct estimates of suitability for each pixel in the niche model, then sums and rescales all niche models to produce the result. There are 3<sup>3</sup>=27 combinations for each climate variable. We can visualize these with `machu.respplot`:
+```
+# visualize uncertainty
+machu.respplot(ace.ts.u[[1]], clim="bio_12")
+```
+![respplot4](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/respplot4.png?raw=true)
+
+When uncertainty values are passed to this function, it automatically plots the 27 skew-normal distributions formed by the different parameter combinations. There isn't a ton of variability in this case, so the default `fill=F` actually makes it easier to see. Node1-*silverstonei* is very constrained, while Node3-*bassleri* and Node3-*yoshina* have more variation. Thick dotted lines are drawn to show the median distribution for each taxon that would be used were `unc=F`. 
+#### Characterizing uncertainty in divergence times
 
 Let's confirm that our output contains the ancestral taxa that we'd expect. Remember that Mis19 corresponds to the third time-slice pictured above, so we'd expect four ancestral taxa. The `ace.mis19` output looks like this:
 ```
