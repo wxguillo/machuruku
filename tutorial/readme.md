@@ -573,7 +573,45 @@ machu.plotmap(mod.ts.u, plot="t", axes=F, title.cex=0.85, to.scale=T, plot.asp=2
 This shows some improvement, as we now have some suitable area in the second timeslice (maps #5 and 6). However, the first timeslice still shows no suitable habitat. This is what happens when you choose a very range-limited taxon as the example for your tutorial. 
 
 #### Clipping niche models
-By default, the `machu.3.anc.niche` function clips the tails  
+By default, the `machu.3.anc.niche` function clips the tails of the skew-normal distributions describing the relationships between each climate variable and suitability (i.e., setting suitability (y) below the lower confidence limit (x) to zero, and setting suitability above the upper confidence limit to the upper confidence limit). This produces "cleaner" models. This behavior is controlled by the `clip.Q` parameter, which is `TRUE` by default. The confidence limits to clip by are in turn set by the `clip.amt` parameter, which is set to 0.95 by default. 
+
+In the previous version of Machuruku, the confidence limits to clip by were themselves climate response variables parsed in `machu.1.tip.resp` and passed through `machu.2.ace`. To simplify matters, these variables are omitted from Machuruku 2.0 and the confidence limits are calculated directly within `machu.3.anc.niche` by randomly sampling from the corresponding skew-normal distribution with `sn::rsn` and calculating the confidence limits from the sample with `quantile`. The number of samples taken by `rsn` is set with the parameter `clip.samples`, which is set by default to 10,000; decreasing this number may improve the speed of the function, while sacrificing accuracy (for most applications 10,000 will be fine).
+
+In the following code block, I demonstrate the functionality of `clip.Q` by projecting ancestral niches into the m2 timeslice, first with no clipping, then clipping at the default level (95%), then performing very stringent clipping. 
+```
+# clipping niche models
+mod.ts.u.nc <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], clip.Q=F) # no clipping
+mod.ts.u.c95 <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], clip.Q=T) # default clipping (95%)
+mod.ts.u.c50 <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], clip.Q=T, clip.amt=0.5) # stringent clipping (50%)
+```
+When subsetting the `machu.2.ace` output `ace.ts.u`, single brackets must be used so that the input is still in "list" format. Now let's combine these results into a single list with `c` and visualize them with `machu.plotmap`:
+```
+# combine and visualize
+clip.demo <- c(mod.ts.u.nc, mod.ts.u.c95, mod.ts.u.c50)
+names(clip.demo) <- c("no clipping", "clipping at 95%", "clipping at 50%")
+machu.plotmap(clip.demo, plot="t", axes=F, to.scale=T, plot.asp=1)
+```
+I reset the names of each timeslice/scenario to better reflect what I'm trying to show. In `machu.plotmap`, I specified `plot.asp=1`, which controls the aspect ratio of the output window that the function uses to determine how many rows and columns to use. I'm after a 3x2 grid.
+![clipdemo](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/clipdemo.png?raw=true)
+
+Here we see that the models are broadest at the top, and much narrower at the bottom where I've clipped the tails of the skew-normal distributions halfway. This can be a useful way of making models more or less conservative a posteriori.
+#### Making binary niche models
+In some applications one may want to produce a binary (0,1) niche model rather than a continuous one. This is accommodated in `machu.3.anc.niche` via the `resp.curv` parameter, which specifies whether to use response curves in constructing the niche model. By default, `resp.curv=TRUE`. When `FALSE`, the function will instead produce binary models. With this method, the values of pixels with suitabilities within or greater than confidence limits determined by `clip.amt` are converted to 1; the values of pixels with suitabilites lower than the lower confidence limit are converted to 0. Below, we produce binary models at the default confidence level (95%) and at a more stringent one (75%), then display the results.
+```
+# producing binary models
+mod.ts.u.b95 <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], resp.curv=F) # default clipping (95%)
+mod.ts.u.b75 <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], resp.curv=F, clip.amt=0.75) # stringent clipping (75%)
+# combine and visualize
+binary.demo <- c(mod.ts.u.b95, mod.ts.u.b75)
+names(binary.demo) <- c("clipping at 95%", "clipping at 75%")
+machu.plotmap(binary.demo, plot="t", title.cex=0.8, axes=F, plot.asp=1)
+```
+![binarydemo](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/binarydemo.png?raw=true)
+
+The models are now in binary format, where a pixel either is suitable or it isn't. The bottom row with more stringent clipping produces less suitable area.
+
+
+
 
 
 This step loops through each taxon in the `machu.2.ace()` output and constructs a Bioclim model in the provided paleoclimate data. Here I'm projecting our `ace.M2` models, consisting of two taxa interpolated to 3.3 Ma, into the M2 climate data:
