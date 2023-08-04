@@ -47,7 +47,7 @@ You can test if it worked by typing `machu` into the console (in RStudio) and se
 I opted to provide the raw tutorial data in this repository rather than within the R package itself so that I can demonstrate how to load it. For now you will need 3 of the files: 
 * `basslerigroup.treefile` - A nexus-formatted treefile containing the three members of the *Ameerega bassleri* group, a small clade of Amazonian dendrobatid poison frogs. This tree was time-calibrated in [BEAST 2](https://www.beast2.org/) and contains 95% HPD intervals for each node height (divergence time). It is a small subset of the UCE phylogeny of *Ameerega* presented in [Guillory et al. 2020](https://www.sciencedirect.com/science/article/pii/S1055790319304609), restricted to the *bassleri* group (*Ameerega bassleri, pepperi,* and *yoshina*) plus *A. silverstonei*, an in-genus outgroup taxon with a similar distribution.
 * `basslerigroup.csv` - Occurrence data for each species in our phylogeny, in decimal-degree format. The first column is the species ID (which must match that in the tree), the second is longitude (x), and the third is latitude (y).
-* `climate.zip` - A zipped file containing the climate data we will be using. If you unzip the file, you will get a folder called `climate/`, which in turn contains four subfolders: `current/`, `mis19/`, `mpwp/`, and `m2/`. These four subfolders correspond to different time periods (present, Marine Isotope Stage 19 (Pleistocene; 0.787 Ma), Mid-Pliocene Warming Period (3.205 Ma), and Marine Isotope Stage M2 (Pliocene; 3.3 Ma). Each subfolder contains 14 raster climate layers from [Paleoclim](http://www.paleoclim.org/), which I've cropped to an area surrounding the *bassleri* group's distribution and reduced in resolution to save space.  
+* `climate.zip` - A zipped file containing the climate data we will be using. If you unzip the file, you will get a folder called `climate/`, which in turn contains five subfolders: `current/`, `mis19/`, `mpwp/`, and `m2/`. The subfolders correspond to different time periods (present, Marine Isotope Stage 19 (Pleistocene; 0.787 Ma), Mid-Pliocene Warming Period (3.205 Ma), and Marine Isotope Stage M2 (Pliocene; 3.3 Ma). Each contains 14 raster climate layers from [Paleoclim](http://www.paleoclim.org/), which I've cropped to an area surrounding the *bassleri* group's distribution and reduced in resolution to save space. 
 
 Download and place these three files in a folder anywhere on your machine, and unzip `climate.zip`. Load up R and set your working directory to this location with the `setwd()` function.
 
@@ -609,127 +609,107 @@ machu.plotmap(binary.demo, plot="t", title.cex=0.8, axes=F, plot.asp=1)
 ![binarydemo](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/binarydemo.png?raw=true)
 
 The models are now in binary format, where a pixel either is suitable or it isn't. The bottom row with more stringent clipping produces less suitable area.
-
-
-
-
-
-This step loops through each taxon in the `machu.2.ace()` output and constructs a Bioclim model in the provided paleoclimate data. Here I'm projecting our `ace.M2` models, consisting of two taxa interpolated to 3.3 Ma, into the M2 climate data:
+#### Projecting a single scenario into multiple paleoclimates
+Because it is written as a series of nested apply statements, `machu.3.anc.niche` can handle any number of timeslices or paleoclimate datasets. The question is how it associates a timeslice to a paleoclimate dataset. In the previous sections, each of three timeslices was associated with one of three paleoclimates. But in some cases, a user may want to project one timeslice into multiple paleoclimates, perhaps for comparison. In fact, this is analogous to the usual practice of projecting present-day niche models into past or future climates, which does not account for niche evolution (Machuruku was developed to overcome this issue). In any case, all this takes is specifying a single timeslice and multiple paleoclimates:
 ```
-mod <- machu.3.anc.niche(ace.M2, ClimM2, verbose = T)
+# one timeslice into multiple paleoclimates
+clim <- list(mis19.reduced, mpwp.reduced, m2.reduced)
+mod.multipc <- machu.3.anc.niche(ace.n, clim, taxa=1:4, clip.Q=F, verbose=T)
 ```
-This step is the most time-consuming part of Machuruku, though it shouldn't take too long in this instance since we only have two taxa and two climate variables. As you add taxa and climate variables, it'll begin to take longer.
+Here I'm using the same three climate datasets as before, and `ace.n`, which you may recall doesn't correspond to any timeslice but instead contains the reconstructed climate response variables for the three nodes in our phylogeny, as well as the original climate response values of the four taxa at the tips of the phylogeny. The `ace.n` object is a list with a single element called `"tips_and_nodes"`. In this case, I'm only interested in projecting the four modern taxa (*bassleri, yoshina, pepperi,* and *silverstonei*) into the three paleoclimate datasets, so I specified `taxa=1:4`, which tells the function only to run the first four taxa in each scenario (taxa can also be specified by name). Since `verbose=T`, the function prints the following progress report to screen:
+```
+[1] "Retained the following scenarios and taxa:"
+[1] "tips_and_nodes: bassleri, pepperi, silverstonei, yoshina"
+[1] "Did not detect uncertainty samples in 'ace' ('unc' in machu.2.ace())."
+[1] "Associating scenarios ('ace') with rastersets ('clim') (numbers are indices, rows are associations):"
+     clim ace
+[1,]    1   1
+[2,]    2   1
+[3,]    3   1
+[1] "Processed scenario 1"
+[1] "Processed scenario 2"
+[1] "Processed scenario 3"
+```
+When specific taxa are specified, `machu.3.anc.niche` prints a sanity check describing which scenarios (=timeslices) and taxa were retained in the analysis. This is because not all taxa may be present in all scenarios when timeslices are taken. If a certain timeslice contains none of the specified taxa, it will be dropped from the analysis. In this case, the second line of the progress report tells us that for our one `"tips_and_nodes"` scenario, only the extant taxa have been retained, as intended.
 
-If we look at `mod`, we see that it is a list where each element is a Raster layer corresponding to a niche model for each taxon:
-```
-$`Node5-Node6`
-class      : RasterLayer 
-dimensions : 328, 253, 82984  (nrow, ncol, ncell)
-resolution : 0.04166667, 0.04166667  (x, y)
-extent     : -81.49866, -70.95699, -14.0478, -0.3811359  (xmin, xmax, ymin, ymax)
-crs        : +proj=longlat +datum=WGS84 +no_defs 
-source     : memory
-names      : layer 
-values     : 0, 0.9999929  (min, max)
+Now look at the association table in the middle of the report. Contrary to the previous case, where each column went `1 2 3`, "`ace`" now reads `1 1 1`. This is showing that the one and only scenario in `ace.n` (`"tips_and_nodes"`) is being projected into each of the three paleoclimates. 
 
-$`Node5-silverstonei`
-class      : RasterLayer 
-dimensions : 328, 253, 82984  (nrow, ncol, ncell)
-resolution : 0.04166667, 0.04166667  (x, y)
-extent     : -81.49866, -70.95699, -14.0478, -0.3811359  (xmin, xmax, ymin, ymax)
-crs        : +proj=longlat +datum=WGS84 +no_defs 
-source     : memory
-names      : layer 
-values     : 0, 0.9939741  (min, max)
+Let's visualize the results:
 ```
-We can use the accessory function `machu.plotmap()` to actually show what these models look like, which is the whole point of this process anyway:
+# visualize
+machu.plotmap(mod.multipc, col=2, plot="t", axes=F, to.scale=T)
 ```
-par(mfrow=c(1,2))
-machu.plotmap(mod)
-```
-![2 models w rarefied occ data](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/2%20mods%20rare.png?raw=true)
+![multipleclimates](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/multipleclimates.png?raw=true)
 
-Note that these are nearly identical to the models I constructed in the Quick-start Guide above; the only differences are due to the fact that I used spatially rarefied occurrence data here, whereas in the Quick-start Guide I did not.
-> You can specify different color ramps using the `col` argument in this function and specifying a number (1:6). 1 = base, 2 = plasma, 3 = viridis, 4 = l17, 5 = r3, 6 = white-to-black. Default = 1.
+This shows that none of the extant taxa have any suitable habitat in mis19 ("rasterSet1"), and have varyingly small amounts in mpwp and m2. But again, these are based on the extant taxa, not their ancestors, which doesn't account for evolution in their physioclimatic tolerances.
 
-In the case where we ran `machu.2.ace()` without specifying a time-slice, getting `ace.all`, we can project both the extant taxa and the three nodes into the same climate layers to see how they directly compare in identical climate space:
+Note that the maps are drawn in a new color palette, which I specified with `col=2` in the above `machu.plotmap` command. This function comes with 6 premade color palettes, inspired by the [Viridis](https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html) R package for colorblind-friendly graphing. Palette `2` is the "plasma" ramp from Viridis, which can also be specified by name. You can also specify your own color palette with the `colorRampPalette` function. 
+#### Projecting multiple scenarios into a single paleoclimate
+One can also do the opposite of the above and project multiple timeslices into a single paleoclimate dataset. This doesn't strike me as particularly useful except for comparing taxa from multiple time periods in the same climatic context. 
 ```
-# build present-day models for all taxa including ancestors
-mod.all <- machu.3.anc.niche(ace.all, ClimCur, verbose = T)
-par(mfrow=c(2,4))
-machu.plotmap(mod.all)
-plot(bassleritree)
+# multiple timeslices into a single paleoclimate
+mod.multi.ts <- machu.3.anc.niche(ace.ts.u, m2.reduced, clip.Q=F, verbose=T)
 ```
-![7 models in current climate w/ tree](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/7%20mod.png?raw=true)
+Here I specify as input `ace.ts.u`, which contains all three timeslices from before with uncertainty data, plus the m2 paleoclimate dataset by itself. This prints the following progress report to screen:
+```
+[1] "Detected uncertainty samples in 'ace' ('unc' in machu.2.ace())."
+[1] "Warning: solo SpatRaster detected, with no raster.sets specified; treating as a single timeslice."
+[1] "Associating scenarios ('ace') with rastersets ('clim') (numbers are indices, rows are associations):"
+     clim ace
+[1,]    1   1
+[2,]    1   2
+[3,]    1   3
+[1] "Processed scenario 1"
+[1] "Processed scenario 2"
+[1] "Processed scenario 3"
+```
+The association table is now reversed from the previous section: the "`clim`" column reads `1 1 1`, showing that the one and only paleoclimate dataset has been associated with all three timeslices. Now let's visualize the results (using `col=3`, which is the "viridis" color palette):
+```
+# visualize
+machu.plotmap(mod.multi.ts, col=3, plot="t", axes=F, to.scale=T)
+```
+![multipletimeslices](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/multipletimeslices.png?raw=true)
 
-I've used a plot of the tree to fill up the eighth panel. Remember, this is all in modern climate, so the three nodal taxa would not necessarily have lived in these areas, but perhaps they would today if they were still extant. (Of course, these are terrible models since we're only using two climate variables in this tutorial; the only even somewhat accurate one is the one for *A. silverstonei*, though of course the ancestral models are speculative). 
+Recall that there are 8 taxa total in our 3 timeslices, 4 in the mis19 timeslice, and 2 each in the mpwp and m2 timeslices. The titles of these plots refer to these three timeslices, but it's important to note that they are *only projected into the m2 paleoclimate data* (i.e. "timeslice_3.3). The scenario component of each title refers to the taxon's timeslice of origin, rather than the paleoclimate scenario it is projected into.
 
-If you're only interested in a few taxa at a time, you can use the `taxa` argument to specify which ones:
+`machu.3.anc.niche` can also accommodate the odd case where there are differing amounts of timeslices and paleoclimates, all greater than 1. In this situation, the function will do a 1:1 association of timeslices and paleoclimates *up to* the length of the shorter input. In other words, when 2 timeslices and 3 paleoclimates are provided, timeslice 1 and paleoclimate 1 will be associated, timeslice 2 and paleoclimate 2 will be associated, and paleoclimate 3 will be dropped from the analysis.
 ```
-# build present-day models for only extant taxa
-mod.extant <- machu.3.anc.niche(ace.all, ClimCur, verbose = T, taxa = 1:4)
-par(mfrow=c(1,4))
-machu.plotmap(mod.extant)
+# differing numbers of timeslices and paleoclimates (all >1)
+machu.3.anc.niche(ace.ts[1:2], clim, verbose=T) %>% invisible
 ```
-![4 models of extant spp only](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/4%20mod%20extant.png?raw=true)
+Here I've specified only the first two timeslices from `ace.ts`, and recall that `clim` contains three paleoclimate datasets. The `%>% invisible` part is using a dplyr pipe (`%>%`) to send the output of the function to `invisible` so that it isn't printed to screen at the end. Since `verbose=T`, the function still prints the following progress report:
+```
+[1] "Did not detect uncertainty samples in 'ace' ('unc' in machu.2.ace())."
+[1] "Associating scenarios ('ace') with rastersets ('clim') (numbers are indices, rows are associations):"
+     clim ace
+[1,]    1   1
+[2,]    2   2
+[1] "Processed scenario 1"
+[1] "Processed scenario 2"
+```
+Only the first two paleoclimate datasets were used since there were fewer timeslices than paleoclimates.
+#### Saving niche models to a folder
+The final feature of `machu.3.anc.niche` to cover is saving outputs. Of course, it isn't very hard to save rasters to a file in whatever format you like with the `writeRaster` function, but Machuruku can save you the trouble with the `output.folder` parameter.
+```
+# save outputs to folder
+machu.3.anc.niche(ace.ts, clim, output.folder=getwd(), verbose=T) %>% invisible
+```
+I've set `output.folder` to the current working directory. Checking for the files with `list.files(pattern=".tif")` shows their names:
+```
+[1] "timeslice_0.787_Node1-silverstonei.tif" "timeslice_0.787_Node2-pepperi.tif"      "timeslice_0.787_Node3-bassleri.tif"    
+[4] "timeslice_0.787_Node3-yoshina.tif"      "timeslice_3.205_Node1-Node2.tif"        "timeslice_3.205_Node1-silverstonei.tif"
+[7] "timeslice_3.3_Node1-Node2.tif"          "timeslice_3.3_Node1-silverstonei.tif"
+```
+The output file format is always TIFF. The name format is the "scenario_taxon.tif". In certain cases, such as when subsetting your `ace` input, this format can get screwed up. You can use `machu.plotmap` to "preview" the titles in that sense because it works similarly. If your titles are getting screwed up, you might as well create your own function to write the rasters to file. 
 
-#### Clipping response curve tails to produce cleaner models
-The `machu.3.anc.niche()` function includes a variety of additional arguments that allow you to further explore your models. One is the `clip.Q` argument, which "trims" or "clips" the tails of the response curves by setting the portions beyond the reconstructed `lowerQ` and `upperQ` parameters equal to zero. By default, the `clip.Q` argument is actually turned on, because it tends to produce cleaner models. However, to fully characterize the tails of these distributions, we can turn `clip.Q` off:
-```
-# turn clip.Q off
-mod.clip.Q <- machu.3.anc.niche(ace.M2, ClimM2, verbose = T, clip.Q = F)
-par(mfrow=c(2,2))
-machu.plotmap(mod)
-machu.plotmap(mod.clip.Q)
-```
-![4 models clip Q off bottom](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/4%20mod%20clipQ.png?raw=true)
 
-The top two models are from the `mod` object we previously made, where `clip.Q = TRUE`. The bottom two models are from `mod.clip.Q`, where `clip.Q = FALSE`. You'll notice that it captures quite a bit more area, albeit of lower suitability.
-#### Creating binary models
-Another option is the `resp.curv` argument, which tells Machuruku that you want to use response curve information to characterize the niche. If you set this argument to FALSE, Machuruku instead sets all values outside of the bounds defined by `lowerQ` and `upperQ` for each climate response curve equal to 0, and all values inside of them to 1 - effectively creating a uniform distribution defined by `lowerQ` and `upperQ`. This is closer in nature to the original way Bioclim worked. In cases where you want a binary suitability surface, it may be useful.
-```
-# use resp.curv = F
-mod.resp.curv <- machu.3.anc.niche(ace.M2, ClimM2, verbose = T, resp.curv = F)
-par(mfrow=c(2,2))
-machu.plotmap(mod)
-machu.plotmap(mod.resp.curv)
-```
-![4 models resp curv on](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/4%20mod%20respcurv.png?raw=true)
 
-Once again, the top two models are from `mod`, with `resp.curv = TRUE` (default). The bottom two models are with `resp.curv = FALSE`. As you can see, they capture a similar area, but all of it has the same (maximum) suitability. This is more like saying the taxon is equally likely to inhabit any of these pixels.
-> Note that `resp.curv` and `clip.Q` can never be turned on at the same time because they're redundant; `resp.curv` already clips the tails since it uses `upperQ` and `lowerQ` as the bounds for the uniform distribution. `clip.Q` simply does not set the intervening values equal to one like `resp.curv`.
 
-#### Incorporating uncertainty from ancestral character estimation
-You might remember the `n.unc` argument from `machu.2.ace()`, that we used to sample the distribution of possible ancestral character estimation values for each climate response parameter, and then sort them into additional niche models. Here is where we incorporate that information. Setting `n.unc` to TRUE (it's FALSE by default) will essentially construct separate models for all of the samples you took (so, five in our case), then sum them, and rescale them so that the maximum value is still 1. 
-```
-# use calc.unc = T
-mod.calc.unc <- machu.3.anc.niche(ace.M2.unc, ClimM2, verbose = T, calc.unc = T)
-par(mfrow=c(2,2))
-machu.plotmap(mod)
-machu.plotmap(mod.calc.unc)
-```
-![4 models calc unc on](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/4%20mod%20calcunc.png?raw=true)
 
-Again, the top two models are from `mod`, with `calc.unc = FALSE`, and the bottom two models are from `mod.calc.unc`, with `calc.unc = TRUE` (also notice that we used `ace.M2.unc` as our input, not `ace.M2`). The models incorporating uncertainty are actually a bit narrower in terms of the highly suitable habitat, but should characterize the total variability in suitability better than the other models.
 
-#### Limiting model area with inverse-distance weighting
-Often, niche models will recover areas obviously outside the known range of a species as suitable. While this can be useful, depending on the question it may be superfluous or misleading. To that end, we added a function called `machu.geo.idw` that uses inverse-distance weighting to restrict niche models to the areas surrounding the taxon's distribution. Essentially, this is a way for accounting for migration limitations by removing from consideration suitable areas that are nonetheless separated from the taxon's actual distribution by geographic barriers or other factors. An obvious hurdle for this function is that *we don't know* what the actual distributions of ancestral taxa were; figuring that out is the whole point of Machuruku in the first place. To (sort of) get around this, the user just specifies an extant taxon distribution (as occurrence data) to represent the ancestral taxon. This is obviously an imperfect system, but it's the best that can be done absent voluminous fossil data. The function is used as such:
-```
-clip <- machu.geo.idw(mod[[2]], occ, taxa = "silverstonei", buffer.dist = 100, kernel.size = 2, MCP.percent = 50)
-```
-> Note that here we're using `occ` rather than `occ.rarefied` because the latter only contains 3 occurrence points for *A. silverstonei* and the function needs at least 5 to work.
 
-In its current implementation, only one taxon can be run through `machu.geo.idw` at once. This is because the user will likely want to specify different occurrence data and buffer distances, etc., for each taxon. In this example, we are using `mod[[2]]` as our taxon to clip, which represents the ancestral taxon "node5-silverstonei" projected into M2 climate data. We specify our `occ.rarefied` occurrence data, and further specify *A. silverstonei* as the extant taxon whose data we wish to use. 
-> If you want to specify a *combination* of extant taxa to use, you can do that too. For instance, if you're clipping `mod[[1]]`, the "node5-node6" taxon (ancestor to the *bassleri* group, you can specify `taxa=c("pepperi","bassleri","yoshina")` to include the entire distribution of the *bassleri* group as a proxy for the distribution of its MRCA. 
 
-What this function does is basically construct a minimum convex polygon (MCP) around the input points, whose size is determined by the `buffer.dist` parameter, which is by default set to 300 kilometers. It then creates a second buffer around the MCP that smooths the model's probability from 1 (adjacent to the MCP) to 0 at the edge of this second buffer. The second smooth buffer's size is determined by the `kernel.size` parameter (default = 1), which is multiplied against the `buffer.dist` parameter to calculate the size; i.e., if `buffer.dist = 100` and `kernel.size = 2`, the second buffer will be 200 km wide. The `mcp.percent` (default = 100) determines the percentage of outlier occurrence points to be removed before construction of the original MCP. 
 
-To visualize what `machu.geo.idw` does, do the following:
-```
-par(mfrow=c(1,2))
-plot(mod[[2]])
-plot(clip)
-```
-![normal model vs. linear-distance weighted model](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/idw.png?raw=true)
 
-As you can see, the clipped model (right) is now restricted to the area surrounding the extant *A. silverstonei* distribution. The left model is the original node5-silverstonei model in M2 climate. 
+
+
