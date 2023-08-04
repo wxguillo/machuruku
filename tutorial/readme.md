@@ -512,8 +512,68 @@ Examining `ace.ts` will show that the loaded file is now in its proper format an
 ### 3. Projecting ancestral niche models into paleoclimate
 The final major step in Machuruku is to use `machu.3.anc.niche` to project the ancestral niche models estimated by `machu.2.ace` into paleoclimate data. For each taxon in each timeslice, the function calculates suitability in the timeslice's associated paleoclimate data by reconstructing a skew-normal distribution for each paleoclimate variable with the `sn::dsn` function. Various parameters and input schemes modify this basic blueprint in various ways. The major advance for Machuruku 2.0 is in allowing the input of multiple timeslices and paleoclimate layers at once, and in the new method of characterizing uncertainty in the ancestral niche.
 #### Projecting multiple timeslices into multiple paleoclimates
-Because it has been rewritten as a series of nested `lapply` statements, `machu.3.anc.niche` can now handle multiple timeslices and multiple paleoclimates as input. 
+Because it has been rewritten as a series of nested `lapply` statements, `machu.3.anc.niche` can now handle multiple timeslices and multiple paleoclimates as input. The main inputs are the output of `machu.2.ace` (ancestral climate response values) and paleoclimate raster layers. The paleoclimate layers can be provided in various formats, including both SpatRaster and RasterStack. When using paleoclimate from multiple time periods as input, it is best to combine them into a list with the `list` function. Ensure the datasets are listed in the same order as their corresponding timeslices in the `machu.2.ace` output, and then provide it as input to `machu.3.anc.niche`:
+```
+### 3. project ancestral niche models into paleoclimate
+# multiple timeslices into multiple paleoclimates
+clim <- list(mis19.reduced, mpwp.reduced, m2.reduced)
+mod.ts <- machu.3.anc.niche(ace.ts, clim, verbose=T)
+```
+I've made sure to provide the reduced climate datasets, because they contain the same climate variables that were used in creating `ace.ts`. On my machine, the function takes only about a second to finish. Because `verbose=T`, it prints the following output:
+```
+[1] "Did not detect uncertainty samples in 'ace' ('unc' in machu.2.ace())."
+[1] "Associating scenarios ('ace') with rastersets ('clim') (numbers are indices, rows are associations):"
+     clim ace
+[1,]    1   1
+[2,]    2   2
+[3,]    3   3
+[1] "Processed scenario 1"
+[1] "Processed scenario 2"
+[1] "Processed scenario 3"
+```
+The table in the center of this output is the most important part: it is a sanity check describing the association of each paleoclimate dataset ("`clim`") with each timeslice ("`ace`"). Each row represents one such association, with each number being an index of the corresponding input (i.e., "`1`" in the "`ace`" column is the first element of `ace.ts`). With this table, we know that the first timeslice (`ace.ts[[1]]`) is being projected into the first paleoclimate dataset (`clim[[1]]`), and so on.
 
+Running `mod.ts` shows the structure of the `machu.3.anc.niche` output. It is a list of lists, where each element corresponds to one timeslice, itself a list of ancestral niche models, one per taxon. Running `names(mod.ts)` shows `[1] "timeslice_0.787" "timeslice_3.205" "timeslice_3.3"`, while examining the names of the first element of `mod.ts` with `names(mod.ts[[1]])` yields `[1] "Node3-bassleri"     "Node3-yoshina"      "Node2-pepperi"      "Node1-silverstonei"`. From our knowledge of `ace.ts`, we'd expect `mod.ts` to have four niche models for the first timeslice (mis19), and two for the others (mpwp and m2). Running `sapply(mod.ts, length)` yields what we expect:
+```
+timeslice_0.787 timeslice_3.205   timeslice_3.3 
+              4               2               2
+```
+We can visualize these niche models using the `machu.plotmap` function. 
+```
+machu.plotmap(mod.ts, plot="t", axes=F, title.cex=0.85, to.scale=T, plot.asp=20/9)
+```
+This works similarly to the other plotting functions in Machuruku 2.0 where the plots can be shown `"together"` or `"separately"`. I've set `axes=F` to reduce visual clutter, `title.cex=0.85` so that the titles fit in the window, and `plot.asp=20/9` to plot the maps in a compact horizontally-oriented format. The `to.scale` parameter identifies the maximum suitability value across all niche models and plots all of them on the same scale so that they can be directly compared. Here is the result:
+![ancniche1](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/ancniche1.png?raw=true)
+
+It turns out that with the settings and inputs we used, there is actually no suitable habitat for our ancestral taxa except in the oldest time period! Because the taxa are still extant, we know this can't be the case, so we can try being more conservative with our inputs.
+#### Projecting into paleoclimate while accounting for uncertainty
+Earlier, we accounted for uncertainty in the reconstruction of the ancestral niche parameters by setting `unc=T` in `machu.2.ace`. When passing a `machu.2.ace` output where `unc=T` to `machu.3.anc.niche`, the function automatically detects the presence of uncertainty and includes it in the projections into paleoclimate. This is done by taking all 3<sup>3</sup>=27 possible combinations of niche parameters for each climate variable, reconstructing a skew-normal distribution for each one, and converting to suitability across the climate raster to essentially produce 27 different niche models. These are then summed and rescaled to produce a single model that is generally broader than one not accounting for uncertainty. To run this analysis, we will use the `ace.ts.u` result from before as input:
+```
+# projecting while accounting for uncertainty
+mod.ts.u <- machu.3.anc.niche(ace.ts.u, clim, verbose=T)
+```
+The function acknowledges the presence of uncertainty information when printing progress updates to screen:
+```
+[1] "Detected uncertainty samples in 'ace' ('unc' in machu.2.ace())."
+[1] "Associating scenarios ('ace') with rastersets ('clim') (numbers are indices, rows are associations):"
+     clim ace
+[1,]    1   1
+[2,]    2   2
+[3,]    3   3
+[1] "Processed scenario 1"
+[1] "Processed scenario 2"
+[1] "Processed scenario 3"
+```
+In this case the function took significantly longer to finish than without uncertainty because it is constructing 27x as many niche models. Let's view the results again:
+```
+machu.plotmap(mod.ts.u, plot="t", axes=F, title.cex=0.85, to.scale=T, plot.asp=20/9)
+```
+![ancniche2](https://github.com/wxguillo/machuruku/blob/machuruku-2.0/tutorial/images/ancniche2.png?raw=true)
+
+This shows some improvement, as we now have some suitable area in the second timeslice (maps #5 and 6). However, the first timeslice still shows no suitable habitat. This is what happens when you choose a very range-limited taxon as the example for your tutorial. 
+
+#### Clipping niche models
+By default, the `machu.3.anc.niche` function clips the tails  
 
 
 This step loops through each taxon in the `machu.2.ace()` output and constructs a Bioclim model in the provided paleoclimate data. Here I'm projecting our `ace.M2` models, consisting of two taxa interpolated to 3.3 Ma, into the M2 climate data:
