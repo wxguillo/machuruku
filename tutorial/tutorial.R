@@ -24,10 +24,10 @@ plot(current$bio_1)
 # add occurrence data
 taxa <- unique(occ$species)
 cols <- c("cyan", "yellow", "red", "orange")
-for (i in taxa) points(subset(occ, species==i)$long, subset(occ, species==i)$lat, 
-                       col = cols[which(taxa==i)], 
+for (i in taxa) points(subset(occ, species==i)$long, subset(occ, species==i)$lat,
+                       col = cols[which(taxa==i)],
                        pch=19, cex=0.75)
-legend(x = "bottomleft", legend = taxa, col = cols, pch=19, bty="n")
+legend(-81, -11, legend = taxa, col = cols, pch=19, bty="n")
 
 ######### quick start
 # visualize tree with timeslice at 3.3 Ma
@@ -59,6 +59,7 @@ par(mfrow=c(2,2), mar=c(0,0,2,0))
 lapply(1:4, function(x) plot(mod[[x]], axes=F, legend=F, box=F, main=names(mod)[x]))
 
 # rarefy occurrence data
+dev.off()
 occ.r <- machu.occ.rarefy(occ, rarefy.dist=10, plot=T)
 resp <- machu.1.tip.resp(occ.r, current, plot="t", plot.points=T, verbose=T)
 
@@ -186,4 +187,3 @@ machu.3.anc.niche(ace.ts[1:2], clim, verbose=T) %>% invisible
 # save outputs to folder
 machu.3.anc.niche(ace.ts, clim, output.folder=getwd(), verbose=T) %>% invisible
 list.files(pattern=".tif")
-
