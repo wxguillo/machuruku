@@ -3,22 +3,22 @@
 # low resolution rasters when the n.occ*30 or even n.occ exceeds
 # the number of pixels. Also streamlined the code some
 #
-# added a plot argument to machu.occ.rarefy() that visualizes 
+# added a plot argument to machu.occ.rarefy() that visualizes
 # rarefication of points
 #
 # rewrote machu.treeplot(), now primarily based in phytools
 # with more streamlined arguments and better optimized visuals
 #
-# added the ability to plot present-day niche models to 
+# added the ability to plot present-day niche models to
 # machu.1.tip.resp() and streamlined the code. Changed the
 # skew-normal dist estimation function from fGarch::snormFit
-# to sn::selm, as the "xi" skew param offered by snormFit 
+# to sn::selm, as the "xi" skew param offered by snormFit
 # doesn't behave like a skew param should (values <1 basically
 # create an upside-down mirror of the dist, rather than make the
 # skew go the other way). selm produces very similar results but
-# with a standard skew param for which a BM evolution model is 
+# with a standard skew param for which a BM evolution model is
 # more justifiable. This function can also now output present-day
-# niche models with the output.bioclim argument. When there are 
+# niche models with the output.bioclim argument. When there are
 # fewer than 10 points for a given species, the function will now
 # randomly generate up to 10 points within an MCP for that species
 #
@@ -39,11 +39,11 @@
 # 6. can output raster files
 #
 # subsumed machu.trees.unc() into machu.tree.unc(), which now detects whether it should
-# create uCI/lCI trees from a file containing multiple trees or a single tree with 
+# create uCI/lCI trees from a file containing multiple trees or a single tree with
 # confidence intervals automatically. Can also handle output from MEGA/RelTime as well.
 #
 # rewrote machu.respplot and machu.plotmap for greater flexibility and compatibility
-# 
+#
 # removed machu.geo.idw because conceptually using present-day distributions to restrict
 # past niche models doesn't make a lot of sense, and I wasn't happy with the results.
 
@@ -61,10 +61,10 @@
 #' @param output.bioclim If TRUE, output a Bioclim niche model raster for each taxon instead of climate response curves.
 #' @param verbose If TRUE, print progress updates to the screen.
 #'
-#' @details 
-#' This function uses the function dismo::bioclim() to construct present-day Bioclim niche models. It is only compatible with the older Raster package, so a SpatRaster object (from the newer Terra package) will automatically be converted before being passed to the rest of the function. 
+#' @details
+#' This function uses the function dismo::bioclim() to construct present-day Bioclim niche models. It is only compatible with the older Raster package, so a SpatRaster object (from the newer Terra package) will automatically be converted before being passed to the rest of the function.
 #'
-#' Unfortunately the constraints of the 'sn::selm()' function disallow any taxa having fewer than 10 occurrence points. To that end, this function contains a utility to randomly sample occurrence points within the minimum convex polygon comprised of the occurrence data for species, up to n=10. When the plotting functionality is activated (i.e. plot="s" or plot="t"), these random points are drawn in red. In this case, the output of the function will be a list that contains the normal output (response table or niche models) as well as the occurrence data table with the newly added random points. Obviously, it is better to have at least 10 real occurrence points; however for rare species, or range-limited species after spatial rarefication, that may be difficult or impossible. 
+#' Unfortunately the constraints of the 'sn::selm()' function disallow any taxa having fewer than 10 occurrence points. To that end, this function contains a utility to randomly sample occurrence points within the minimum convex polygon comprised of the occurrence data for species, up to n=10. When the plotting functionality is activated (i.e. plot="s" or plot="t"), these random points are drawn in red. In this case, the output of the function will be a list that contains the normal output (response table or niche models) as well as the occurrence data table with the newly added random points. Obviously, it is better to have at least 10 real occurrence points; however for rare species, or range-limited species after spatial rarefication, that may be difficult or impossible.
 #'
 #' @return Table consisting of the response of each species to the climate data. Each response is represented by a skew-normal distribution. Alternatively, the function can output the actual Bioclim niche models.
 #'
@@ -88,10 +88,10 @@
 #' @import dplyr
 #' @export
 machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.points=F, plot.asp=16/9, output.bioclim=F, verbose=F){
-  
+
   # get species' names
   sp <- unique(occ[,sp.col])
-  
+
   # check whether each species has at least 10 occurrence points
   occ.counts <- sapply(sp, function(x) nrow(subset(occ, occ[sp.col] == x)))
   # if so, add points up to n=10 within the bounding box comprised of the species' points, and print warning messages since this isn't exactly best practice
@@ -101,7 +101,7 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
     print(paste("Warning: adding random points up to n=10 for each of these species, contained within MCP defined by points."))
     # create a list where each element is a table for a single species (only species with <10 points)
     t <- lapply(add.pts, function(sp) occ[occ[,sp.col]==sp,]); names(t) <- add.pts
-    # randomly select 10 minus the number of points for each taxon within a minimum convex polygon 
+    # randomly select 10 minus the number of points for each taxon within a minimum convex polygon
     t <- lapply(t, function(x) x %>% st_as_sf(coords=col.xy) %>% summarize(geometry=st_union(geometry)) %>% st_convex_hull() %>% st_sample(10-nrow(x)))
     # convert to dataframes
     t <- lapply(t, function(x) unlist(x) %>% matrix(ncol=2, byrow=T) %>% as.data.frame())
@@ -113,20 +113,20 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
     t <- rbind(setNames(cbind(occ, rep(F, nrow(occ))), c(names(occ), "rand")), t)
     # sort table
     occ <- t[order(t[,sp.col]),]
-  } 
-  
+  }
+
   if (class(clim)=="SpatRaster"){
     if (verbose==T) print("'clim' is a SpatRaster, attempting to convert to RasterStack for compatibility with dismo::bioclim...")
     clim <- stack(clim)
   }
   if (class(clim)=="list" | class(clim)=="RasterBrick") stop("Provide a single RasterStack or SpatRaster for 'clim'.")
-  
-  # sample each species' occurrence data for each climate variable 
+
+  # sample each species' occurrence data for each climate variable
   enms <- lapply(as.list(sp), function(x){
     sp.pts <- subset(occ, occ[,sp.col] == x)[,col.xy]
     bioclim(clim, sp.pts)
   })
-  ######### 
+  #########
   # PLOTS #
   #########
   # separate plots:
@@ -138,10 +138,10 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
         p <- occ[occ[,sp.col]==sp[i],]
         points(p[,col.xy])
         if (any(colnames(occ)=="rand")) points(p[p$rand==T, col.xy], col="red")
-      } 
+      }
     }
   }
-  if (plot=="together" | plot=="tog" | plot=="t"){ 
+  if (plot=="together" | plot=="tog" | plot=="t"){
     arr <- n2mfrow(length(enms), asp=plot.asp) # calculate best plot arrangement
     par(mfrow=arr, mar=c(3.1, 2.1, 1.1, 1.1))
     if (verbose==T) print(paste("Plotting all plots together. n2mfrow chose", arr[1], "rows and", arr[2], "columns based on an aspect ratio of", MASS::fractions(plot.asp)))
@@ -151,8 +151,8 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
         p <- occ[occ[,sp.col]==sp[i],]
         points(p[,col.xy])
         if (any(colnames(occ)=="rand")) points(p[p$rand==T, col.xy], col="red")
-      } 
-    } 
+      }
+    }
   }
   if (output.bioclim==T){
     if (verbose==T) print("Outputting Bioclim models instead of response curves.")
@@ -164,10 +164,10 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
   #########
   # end plot section
   #########
-  
+
   # initialize some objects that'll come in handy later
   response.list <- list()
-  
+
   # prep enms list for next part
   enms <- lapply(enms, function(x) x@presence)
   names(enms) <- sp
@@ -182,7 +182,7 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
 
     # for each climate variable for each species:
     for (i in colnames(in.pres)){
-      
+
       # mean, sd, xi
       normFit <- extractSECdistr(selm(eval(parse(text=i)) ~ 1, data=in.pres))
       mean <- normFit@dp["xi"]
@@ -198,7 +198,7 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
     }
     # add each species' row.vector to a list to be stored for later
     response.list[[j]] <- row.vector
-    if (verbose == TRUE) print(paste0("Processed taxon ", j)) 
+    if (verbose == TRUE) print(paste0("Processed taxon ", j))
   }
   # combine list elements into a single output table
   response.table <- do.call(rbind, response.list)
@@ -208,8 +208,8 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
 
 #' Select top environmental variables
 #'
-#' Perform a boosted regression tree analysis to identify the most important climate variables for your taxon set. 
-#' 
+#' Perform a boosted regression tree analysis to identify the most important climate variables for your taxon set.
+#'
 #' @param occ Occurrence data for all taxa. Identical to input for machu.1.tip.resp(). Dataframe, with columns in the order of species, x/long, y/lat.
 #' @param clim Climate data for all taxa. Identical to input for machu.1.tip.resp(). A RasterStack of corresponding climate variables. SpatRaster (from Terra) is also acceptable
 #' @param sp.col Specify which column of the input occurrence data corresponds to species ID. Default = 1.
@@ -221,9 +221,9 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
 #' @param contrib.greater If method="contrib", this variable is required. The kept variables are selected for their relative influence in predicting the species' distribution. Here, users select variables equal to or above an input model contribution value. The default value for this method is 5 (= variables with 5 percent or higher contribution to model of either species are kept). This value will be ignored if method="estimate" or "nvars".
 #' @param pa.ratio Ratio of pseudoabsences to occurrence points, typically this is 4. The default value is 4. There have to be at least 50 total points (occ+pseudoabsences) for the model to work; if the sum does not total to 50, the difference is taken as the number of pseudoabsences, rather than the value of occ*pa.ratio.
 #' @param verbose Tf TRUE, print progress to the screen. Default = F.
-#' 
+#'
 #' @details This function is a modified version of humboldt.top.env() from the package Humboldt. It runs generalized boosted regression models (a machine learning ENM algorithm) to select top parameters for inclusion your analyses. This is important because you want the models to reflect variables that are relevant to the species' distribution. Alternatively, you can run Maxent outside of R and manually curate the variables you include (also recommended).
-#' 
+#'
 #' @return Prints the important climate variables to the screen. You can then combine them into a new RasterStack or SpatRaster object.
 #'
 #' @examples
@@ -232,7 +232,7 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
 #' clim <- stack(list.files(rasterfolder, pattern="T0_", full.names=T))
 #' # Single SpatRaster (terra)
 #' clim <- c(rast(list.files(rasterfolder, pattern="T0_", full.names=T)))
-#' 
+#'
 #' # identify the top 6 climate variables across all taxa
 #' machu.top.env(occ, clim, method = "nvars", nvars.save = 6)
 #' # identify all climate variables with a contribution greater than 10%
@@ -251,7 +251,7 @@ machu.top.env <- function(occ, clim, sp.col=1, col.xy=2:3, learning.rt=0.01, ste
     clim <- stack(clim)
   }
   if (class(clim)=="list" | class(clim)=="RasterBrick") stop("Provide a single RasterStack or SpatRaster for 'clim'.")
-  
+
   # input adjustments
   if (method=="ESTIMATE" | method=="Estimate") method <- "estimate"
   if (method=="CONTRIB" | method=="Contrib" | method=="contribution") method <- "contrib"
@@ -370,12 +370,12 @@ machu.top.env <- function(occ, clim, sp.col=1, col.xy=2:3, learning.rt=0.01, ste
 #' @param rarefy.dist Distance to rarefy points (values need to be in km (recommended) or decimal degrees).  See associated parameter rarefy.units. Default = 0.
 #' @param rarefy.units The units of the rarefy.dist parameter, either "km" for kilometers or "dd" for decimal degrees. Default = "km".
 #' @param plot Creates an optional plot visualizing the points removed and kept. Default = F.
-#' @param verbose If verbose=T, text boxes displaying progress will be displayed. Default = T. 
-#' 
+#' @param verbose If verbose=T, text boxes displaying progress will be displayed. Default = T.
+#'
 #' @details A script to systematically select localities within a specified area at specified spatial resolution.  The outcome is always the same and is not random.  This reduces sampling biases in downstream analyses- you should do it! Output is a reduced dataset with less spatial autocorrelation.
 #'
 #' @return A dataframe with rarefied occurrence data.
-#'  
+#'
 #' @importFrom spatstat.geom nndist
 #' @importFrom tcltk setTkProgressBar
 #' @examples
@@ -416,7 +416,7 @@ machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units 
   nPts <- nrow(xy)
   if (verbose==T & userOS==1) pb <- winProgressBar(title = "Initializing", min = 0, max =nPts, width = 300)
   if (verbose==T & userOS==2) pb <- tkProgressBar(title = "Initializing", label = "", min = 0, max = nPts, initial = nPts, width = 300)
-  
+
   # setup env - separate from distance
   spName <- in.pts[,1][1]
   new.data <- NULL
@@ -457,7 +457,7 @@ machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units 
   col.orig <- c(3:nc)
   data.out <- new.data[,col.orig]
   print(paste0("Starting points = ", nrow(xy), ", Final rarefied points = ", nrow(new.data)))
-  
+
   # optional plot
   if (plot==T){
     plot(xy[,colxy+2], main="Before vs. After Spatial Rarefication", pch=19)
@@ -465,7 +465,7 @@ machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units 
     legend("bottomright", c("Removed", "Kept"), pch=19, col=c("black", "red"),
            inset=c(0,-0.275), xpd=T, horiz=T, bty="n")
   }
-  
+
   return(data.out)
 }
 
@@ -480,9 +480,9 @@ machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units 
 #'@param verbose Report progress and checks to screen. Default = TRUE.
 #'
 #'@details
-#'This function generates a list of three trees that characterize the uncertainty of divergence time estimation. These trees can then be used in machu.2.ace() to explore scenarios in which varying numbers of taxa may have been present at a certain timeslice, given divergence time uncertainty. 
+#'This function generates a list of three trees that characterize the uncertainty of divergence time estimation. These trees can then be used in machu.2.ace() to explore scenarios in which varying numbers of taxa may have been present at a certain timeslice, given divergence time uncertainty.
 #'
-#'The function has two modes, depending on what input is provided. When a single tree is provided, the function outputs the input tree, plus two additional trees, constructed from the upper and lower confidence limits provided to characterize divergence time uncertainty by time calibration software such as BEAST. The 'phylo' object (from ape::read.tree) usually used to represent phylogenetic trees in R does not store this information, so the input must be in the 'treedata' format (from treeio::read.beast). Currently the function is compatible with output from BEAST and BEAST-adjacent software such as SNAPP, as well as output from MEGA calibrated with the RelTime method. 
+#'The function has two modes, depending on what input is provided. When a single tree is provided, the function outputs the input tree, plus two additional trees, constructed from the upper and lower confidence limits provided to characterize divergence time uncertainty by time calibration software such as BEAST. The 'phylo' object (from ape::read.tree) usually used to represent phylogenetic trees in R does not store this information, so the input must be in the 'treedata' format (from treeio::read.beast). Currently the function is compatible with output from BEAST and BEAST-adjacent software such as SNAPP, as well as output from MEGA calibrated with the RelTime method.
 #'
 #'The other mode characterizes uncertainty directly from a Bayesian posterior of trees. The function identifies the trees in the posterior with total tree heights closest to the median and the highest posterior density (HPD) limits of the distribution of tree heights. Because a tree posterior can consist of millions of trees, rather than overwhelm R by loading them all into an object (i.e. 'treedataList' from treeio), the function reads the trees directly from a file one at a time. Thus this mode is activated by specifying a filename; the file should be output from BEAST or BEAST-adjacent software, generally a .trees file in NEXUS format (open the file in a text editor to check, and examine the example file provided by the tutorial). The method consists of three "passes" through the posterior distribution of trees. In the first pass, the number of trees is simply counted, and the number of samples to skip as burn-in, given the burnin percentage specified by the user, is calculated. In the second pass, total tree heights are calculated for each tree, and the median and HPD limits at the confidence level specified are calculated for this distribution. In the third pass, the trees with total heights closest to the median and HPD limits are found, and sent to the output list.
 #'
@@ -508,7 +508,7 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
   # format checks
   if (class(tree)=="treedataList") stop("'treedataList' object detected. For the multiple trees method, supply the filename rather than the object itself. This saves processing power.")
   if (class(tree)=="phylo") stop("'phylo' object detected. This format doesn't store uncertainty data. Use treeio::read.beast() to supply a 'treedata' object instead.")
-  
+
   # single tree method
   if (class(tree)=="treedata"){
     # check for ultrametricity
@@ -518,12 +518,12 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
       rt <- T
       if (verbose==T) print("Single RelTime tree detected.")
     } else {
-      rt <- F 
+      rt <- F
       if (verbose==T) print("Single BEAST-type tree detected.")
     }
     # lower CI tree
     LCItib <- as_tibble(tree)
-    for (n in 1:nrow(LCItib)){ 
+    for (n in 1:nrow(LCItib)){
       # get upper CI for that node
       if (rt==F) nodeLCI <- LCItib$height_0.95_HPD[[n]][1] else if (rt==T) nodeLCI <- LCItib$divtime_0.95_CI[[n]][1]
       # get that node's parent node
@@ -539,14 +539,14 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
       # if the upper CI for the focal node is higher than that of its parent node, change its upper CI value to upper CI of parent node
       if (nodeLCI > pnodeLCI & n != pnode) nodeLCI <- pnodeLCI
       # set tree node heights to upper CI values
-      LCItib$branch.length[n] <- pnodeLCI - nodeLCI 
+      LCItib$branch.length[n] <- pnodeLCI - nodeLCI
     }
     LCItree <- as.phylo(LCItib)
     if (verbose==T) print("Created LCI tree based on lower end of the 95% confidence intervals for divergence times.")
-    
+
     # upper CI tree
     UCItib <- as_tibble(tree)
-    for (n in 1:nrow(UCItib)){ 
+    for (n in 1:nrow(UCItib)){
       # get upper CI for that node
       if (rt==F) nodeUCI <- UCItib$height_0.95_HPD[[n]][2] else if (rt==T) nodeUCI <- UCItib$divtime_0.95_CI[[n]][2]
       # get that node's parent node
@@ -562,24 +562,24 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
       # if the upper CI for the focal node is higher than that of its parent node, change its upper CI value to upper CI of parent node
       if (nodeUCI > pnodeUCI & n != pnode) nodeUCI <- pnodeUCI
       # set tree node heights to upper CI values
-      UCItib$branch.length[n] <- pnodeUCI - nodeUCI 
+      UCItib$branch.length[n] <- pnodeUCI - nodeUCI
     }
     UCItree <- as.phylo(UCItib)
     if (verbose==T) print("Created UCI tree based on upper end of the 95% confidence intervals for divergence times.")
-    
+
     # create output list
     out <- list(LCItree, as.phylo(tree), UCItree)
     names(out) <- c("lCItree", "inputtree", "uCItree")
     return(out)
-    
+
   # multiple trees method
   } else if (class(tree)=="character"){
-    
+
     # announcements and checks
     if (verbose==T) print(paste0("Multiple trees in file '", tree, "' detected. Burnin: ", burnin, "; Confidence level: ", conf))
     if (burnin > 1 | burnin < 0) stop("'burnin' must be between 0 and 1.")
     if (conf > 1 | conf < 0 ) stop("'conf' must be between 0 and 1.")
-    
+
     ##### FIRST PASS: Calculating the number of trees and burnin amount #####
     if (verbose==T) print(paste0("FIRST PASS: Calculating trees to remove at ", burnin*100, "% burnin."))
     con <- file(tree, "r")
@@ -607,9 +607,9 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
     # report burnin and treenumber
     if (verbose==T) print(paste0("Found ", treenumber-1, " trees, skipping the first ", burn.no, " under ", burnin*100, "% burnin."))
     close(con)
-    
+
     ##### SECOND PASS: Calculating HPD distribution of tree heights #####
-    if (verbose==T) print(paste0("SECOND PASS: Calculating ", conf*100, "% HPD of tree heights at ", burnin*100, "% burnin.")) 
+    if (verbose==T) print(paste0("SECOND PASS: Calculating ", conf*100, "% HPD of tree heights at ", burnin*100, "% burnin."))
     con <- file(tree, "r")
     # re-initiate tree counter and a vector of tree heights
     treenumber <- 1
@@ -642,9 +642,9 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
     # report HPDs and average
     if (verbose==T) print(paste0(conf*100, "% HPD min: ", round(HPD.min, digits=2), "; Median: ", round(HPD.med, digits=2), "; ",
                                  conf*100, "% HPD max: ", round(HPD.max, digits=2), "; from ", length(treeheights), " trees under ",
-                                 burnin*100, "% burnin.")) 
+                                 burnin*100, "% burnin."))
     close(con)
-    
+
     ##### THIRD PASS: Find closest trees to HPDs and median #####
     if (verbose==T) print(paste0("THIRD PASS: Finding trees with closest heights to ", conf*100, "% HPD limits and median at ", burnin*100, "% burnin."))
     con <- file(tree, "r")
@@ -710,7 +710,7 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
 
 #'Plot trees to visualize each step in the Machuruku process
 #'
-#'Visualize trees to help with interpreting Machuruku analysis and results. Will plot a single tree or multiple trees (i.e. the results of machu.tree.unc) on the same axis. Node numbers/IDs and divergence times can be visualized. Timeslices can be plotted to visualize which "branch-taxa" may be returned at a given time-slice. 
+#'Visualize trees to help with interpreting Machuruku analysis and results. Will plot a single tree or multiple trees (i.e. the results of machu.tree.unc) on the same axis. Node numbers/IDs and divergence times can be visualized. Timeslices can be plotted to visualize which "branch-taxa" may be returned at a given time-slice.
 #'
 #'@param tree Tree input. Can be a single tree in phylo format, or a list of trees. Untested with other formats.
 #'@param timeslice Numeric vector with the timeslices to plot, if any.
@@ -737,51 +737,51 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
 #'@export
 machu.treeplot <- function(tree, timeslice=NULL, nodelabs=T, nodelabsize=0.5, col="red", x.u.lim=NULL, x.l.lim=NULL, timelabs=T, timelabsize=0.8, timelaboffset=-0.35){
   # save user's previous par settings
-  pars <- par() 
-  
+  pars <- par()
+
   # plot single tree if a list of length=1 is given, or a simple phylo object
   if (length(tree) == 1 || class(tree) == "phylo" ){
-    
+
     if (class(tree)=="list") tree <- tree[[1]] # if tree is a list with length=1, unlist it
-    
+
     par(mar=c(3.1, 2.1, 1.1, 1.1)) # set plot margins
-    
+
     th <- max(nodeHeights(tree)) # calculate tree height
     om <- 10^floor(log10(th)) # calculate order of magnitude of tree height
     xlims <- c(ceiling(th/om)*om, -om) # dynamically calculate a good x axis
     if (is.null(x.l.lim)==F) xlims[1] <- x.l.lim # override lower x-limit
     if (is.null(x.u.lim)==F) xlims[2] <- x.u.lim # override upper x-limit
     ylims <- c(0.5, 1.2*Ntip(tree)) # dynamically calculate a good y axis
-    
+
     plot(NA, xlim=xlims, ylim=ylims, bty="n", axes=F, xlab="", ylab="") # set up plot
     axis(1, at=seq(0, xlims[1], by=om)) # draw dynamic timescale
     abline(v=timeslice, col=col) # draw timeslices, if provided
     plotTree(tree, direction="leftwards", xlim=xlims, ylim=ylims, mar=par()$mar, color="black", add=T)
     if (nodelabs==T) labelnodes(text=1:tree$Nnode, node=1:tree$Nnode+Ntip(tree), circle.exp=nodelabsize, interactive=F)
-    if (timelabs==T) ape::nodelabels(text=ape::branching.times(tree), node=1:tree$Nnode+Ntip(tree), 
+    if (timelabs==T) ape::nodelabels(text=ape::branching.times(tree), node=1:tree$Nnode+Ntip(tree),
                                      frame="none", adj=timelaboffset, cex=timelabsize)
   }
   # plot multiple trees if a list greater than length=1 is given
   if (class(tree) == "list" && length(tree) > 1){
-    
+
     par(mar=c(0, 2.1, 0, 1.1), mfrow=c(length(tree), 1), xpd=NA) # set pars, including a column of 1 plot/tree
-    
+
     th <- max(sapply(tree, function(x) max(nodeHeights(x)))) # get maximum node height from all trees
     om <- 10^floor(log10(th)) # calculate order of magnitude of tree height
     xlims <- c(ceiling(th/om)*om, -om) # dynamically calculate a good x axis
     if (is.null(x.l.lim)==F) xlims[1] <- x.l.lim # override lower x-limit
     if (is.null(x.u.lim)==F) xlims[2] <- x.u.lim # override upper x-limit
-    
+
     # loop through each tree
-    for (i in 1:length(tree)){ 
+    for (i in 1:length(tree)){
       # if on the last tree, add a bottom margin to give room for the timescale
       if (i==length(tree)) par(mar=c(3.1, 2.1, 0, 1.1))
-      
+
       ylims <- c(0.5, 1.2*Ntip(tree[[i]])) # dynamically calculate a good y axis for each tree
       plotTree(tree[[i]], direction="leftwards", xlim=xlims, ylim=ylims, mar=par()$mar, color="black")
       if (nodelabs==T) labelnodes(text=1:tree[[i]]$Nnode, node=1:tree[[i]]$Nnode+Ntip(tree[[i]]),
                                   circle.exp=nodelabsize/2, interactive=F)
-      if (timelabs==T) ape::nodelabels(text=ape::branching.times(tree[[i]]), node=1:tree[[1]]$Nnode+Ntip(tree[[i]]), 
+      if (timelabs==T) ape::nodelabels(text=ape::branching.times(tree[[i]]), node=1:tree[[1]]$Nnode+Ntip(tree[[i]]),
                                        frame="none", adj=timelaboffset/0.8, cex=timelabsize/0.9)
     }
     axis(1, at=seq(0, xlims[1], by=om)) # plot timescale
@@ -835,7 +835,7 @@ machu.treeplot <- function(tree, timeslice=NULL, nodelabs=T, nodelabsize=0.5, co
 #'@import sn
 #'@export
 machu.respplot <- function(x, taxa=NULL, clim=NULL, lty=1, lwd=1, col=NULL, fill=F, plot="separate", plot.asp=16/9, legend.cex=1){
-  
+
   ########
   # 1. detect input type (resp or ace) and convert to a universal format (simple dataframe)
   ########
@@ -851,27 +851,27 @@ machu.respplot <- function(x, taxa=NULL, clim=NULL, lty=1, lwd=1, col=NULL, fill
     x <- as.data.frame(lapply(x, unlist))
     rownames(x) <- rn
   } else if (class(x)[1]=="list") stop("Subset input from machu.2.ace() with double brackets.") else stop("Format should be the output of machu.1.tip.resp() or machu.2.ace().")
-  
+
   # prune input table based on which taxa and climates were selected
   if (is.null(taxa)==F){
     x <- x[taxa,]
     if (is.na(x[1,1])==T) stop("None of the provided 'taxa' matched any in the input.")
-  } 
+  }
   if (is.null(clim)==F){
     ci <- c(sapply(clim, function(z) grep(paste0(z, "_"), colnames(x)))) # get indices of matching climate layers for each input in 'clim'
     if (length(ci)==1) stop("None of the provided 'clim' matched any in the input.")
     if (length(ci)%%3) stop("Check 'clim' input for mismatches.")
     x <- x[,ci]
   }
-  
+
   # turn the table into a list of 1 table per climate variable
   cvs <- unique(mgsub(colnames(x), pattern=c("_mean.*", "_stdev.*", "_skew.*"), replacement=rep("", 3))) # get climate variable names
   x <- lapply(cvs, function(z) x[,grep(paste0(z, "_"), colnames(x))])
   names(x) <- cvs
-  
+
   # if 9 slots for each clim are detected (i.e., uncertainty is present), plot all possible combinations at 50% opacity plus median at 100% opacity
   if (ncol(x[[1]])==3) unc <- F else if (ncol(x[[1]])==9) unc <- T else if (ncol(x[[1]])!=3 & ncol(x[[1]])!=9) stop("Check 'clim' input for mismatches.")
-  
+
   ########
   # 2. make plots
   ########
@@ -881,17 +881,17 @@ machu.respplot <- function(x, taxa=NULL, clim=NULL, lty=1, lwd=1, col=NULL, fill
     par(mfrow=arr, mar=c(2.1, 2.1, 1.7, 1.1))
   } else if (plot == "separate" | plot == "separately" | plot == "sep" | plot == "s"){
     par(mar=c(2.1, 2.1, 1.7, 1.1))
-  } 
-  
+  }
+
   # make one plot per climate variable 'var' (element in 'x')
   # loop through climate variables names
   for (var in names(x)){
-    
+
     # no uncertainty
     if (unc==F){
-      
+
       # make x-axis
-      means  <- x[[var]][,paste0(var, "_mean")] 
+      means  <- x[[var]][,paste0(var, "_mean")]
       stdevs <- x[[var]][,paste0(var,"_stdev")]
       lobound <- floor(min(means-stdevs*3)) # lower bound for x axis
       upbound <- ceiling(max(means+stdevs*3)) # upper bound for x axis
@@ -901,18 +901,18 @@ machu.respplot <- function(x, taxa=NULL, clim=NULL, lty=1, lwd=1, col=NULL, fill
       # colors
       if (is.null(col)==T) colors <- brewer.pal(n=ncol(density), name="Set2") else if (is.null(col)==F) colors <- col
       # main plot
-      matplot(climval, density, type="l", xlab=NA, ylab=NA, main=var, lty=lty, lwd=lwd, col=colors) 
+      matplot(climval, density, type="l", xlab=NA, ylab=NA, main=var, lty=lty, lwd=lwd, col=colors)
       # polygons if fill=T
-      if (fill==T) for (i in 1:ncol(density)){ 
+      if (fill==T) for (i in 1:ncol(density)){
         polygon(x=c(min(climval), climval, max(climval)), y=c(0, density[,i], 0), col=alpha(colors[i], 0.5), border=NA)
         lines(x=climval, y=density[,i], lty=lty, lwd=lwd, col=colors[i])
       }
       # legend
       legend("topleft", rownames(x[[var]]), pch=19, pt.cex=1.5, bty="n", col=colors, cex=legend.cex)
-      
+
     # yes uncertainty
     } else if (unc==T){
-      
+
       # get combos
       comb <- list()
       for (i in 1:nrow(x[[var]])){
@@ -922,7 +922,7 @@ machu.respplot <- function(x, taxa=NULL, clim=NULL, lty=1, lwd=1, col=NULL, fill
         comb[[i]] <- expand.grid(list(means=means, stdevs=stdevs, skews=skews))
       }
       names(comb) <- rownames(x[[var]])
-      
+
       # make x axis
       bounds <- lapply(comb, function(co){
         lobound <- floor(min(co$means-co$stdevs*3))
@@ -931,27 +931,27 @@ machu.respplot <- function(x, taxa=NULL, clim=NULL, lty=1, lwd=1, col=NULL, fill
       })
       bounds <- do.call(c, bounds)
       climval <- seq(from=min(bounds), to=max(bounds), by=(max(bounds)-min(bounds))/1000) # x axis
-      
+
       # make y axis
       density <- lapply(comb, function(co) apply(co, 1, function(z) dsn(climval, xi=z[1], omega=z[2], alpha=z[3])))
-      
+
       # colors
       if (is.null(col)==T) colors <- brewer.pal(n=length(density), name="Set2") else if (is.null(col)==F) colors <- col
-      
+
       # make plot
-      matplot(climval, density[[1]], type="l", xlab=NA, ylab=NA, main=var, lty=lty, lwd=lwd, col=alpha(colors[1], 0.5)) 
+      matplot(climval, density[[1]], type="l", xlab=NA, ylab=NA, main=var, lty=lty, lwd=lwd, col=alpha(colors[1], 0.5))
       # additional taxa
       if (length(density) > 1) for (i in 2:length(density)){
         matlines(climval, density[[i]], lty=lty, lwd=lwd, col=alpha(colors[i], 0.25))
       }
       # polygons if fill=T
-      if (fill==T) for (i in 1:length(density)){ 
-        apply(density[[i]], 2, function(p) polygon(x=c(min(climval), climval, max(climval)), y=c(0, p, 0), 
+      if (fill==T) for (i in 1:length(density)){
+        apply(density[[i]], 2, function(p) polygon(x=c(min(climval), climval, max(climval)), y=c(0, p, 0),
                                                    col=alpha(colors[i], 0.1), border=NA))
       }
       # draw median lines for emphasis
       for (i in 1:nrow(x[[var]])){
-        lines(climval, dsn(climval, 
+        lines(climval, dsn(climval,
                            xi=x[[var]][i, grep("_mean$", colnames(x[[var]]))],
                            omega=x[[var]][i, grep("_stdev$", colnames(x[[var]]))],
                            alpha=x[[var]][i, grep("_skew$", colnames(x[[var]]))]),
@@ -978,7 +978,7 @@ machu.respplot <- function(x, taxa=NULL, clim=NULL, lty=1, lwd=1, col=NULL, fill
 #'@details
 #'This function uses ace() from the package "ape" to generate climate response curves at each node of a time-calibrated phylogeny, and extracts the values along the branches at a particular time if so desired. By default, the output is a set of climate response curve parameters for each node and each tip in the tree. However, each node occurs at different poitns in time, making paleoclimatic projections tricky. Thus the user can also provide one or more timeslices with the 'timeslice' parameter. The function will find each branch present at each timeslice and interpolate the response curve parameters along the branches to those points in time. The function can also record uncertainty in ancestral character estimation with the 'unc' parameter.
 #'
-#'You can use phytools::force.ultrametric() to fix small deviations from ultrametricity in your tree. If you are using an alternative tree format from ape's 'phylo' format, the function will automatically attempt to convert it to phylo. If it fails, the function will probably break down the line. Try to convert to 'phylo' yourself before using it in the function. 
+#'You can use phytools::force.ultrametric() to fix small deviations from ultrametricity in your tree. If you are using an alternative tree format from ape's 'phylo' format, the function will automatically attempt to convert it to phylo. If it fails, the function will probably break down the line. Try to convert to 'phylo' yourself before using it in the function.
 #'
 #'You should use a dated tree with this function, otherwise your projections into paleoclimate data will not make much sense. If you're really desperate, you can try ape::chronos() to get a quick-and-dirty dated tree, but I doubt it would be acceptable for publication. Really you should be using the output of time-calibration software such as BEAST or RelTime.
 #'
@@ -986,7 +986,7 @@ machu.respplot <- function(x, taxa=NULL, clim=NULL, lty=1, lwd=1, col=NULL, fill
 #'
 #'The 'unc' parameter behavior has been changed for machuruku 2.0. Now setting unc=T only extracts the upper and lower 95\% confidence intervals for each climate response parameter provided by ace(). These are automatically incorporated into the Bioclim calculations in machu.3.anc.niche(), producing more conservative niche models. When "tips and nodes" are returned (not timeslices), the tips do not have associated confidence intervals because they are held over from the 'tip.resp' input, not produced via ace().
 #'
-#'Use machu.ace.load() to reload outputs saved with 'csv.name'. 
+#'Use machu.ace.load() to reload outputs saved with 'csv.name'.
 #'
 #'@return A list of one element per scenario, either one or more timeslices or all tips and nodes, each a table of reconstructed climate response parameters.
 #'
@@ -1002,13 +1002,13 @@ machu.respplot <- function(x, taxa=NULL, clim=NULL, lty=1, lwd=1, col=NULL, fill
 #'@import ape
 #'@export
 machu.2.ace <- function(tip.resp, tree, timeslice=NULL, unc=F, csv.name=NULL, ace.method="REML", verbose=F){
-  
+
   # Check if tree is a phylo object
   if (class(tree)!="phylo"){
     if (verbose==T) print("Tree is not a phylo... attempting to convert.")
     tree <- as.phylo(tree)
   }
-  
+
   # Check if tree taxa match tip.response table
   treenames <- tree$tip.label
   if (identical(treenames, rownames(tip.resp)[match(treenames, rownames(tip.resp))]) == F){
@@ -1025,7 +1025,7 @@ machu.2.ace <- function(tip.resp, tree, timeslice=NULL, unc=F, csv.name=NULL, ac
   # Sort the response table so that the order of taxa matches that of the tree
   tip.resp <- as.data.frame(tip.resp[match(treenames, rownames(tip.resp)),])
 
-  # Run ape::ace on every column (=trait) of the tip.resp table and output the results in a list 
+  # Run ape::ace on every column (=trait) of the tip.resp table and output the results in a list
   acelist <- apply(tip.resp, 2, function(x) ace(x, tree, type="continuous", method=ace.method))
 
   #############################
@@ -1039,21 +1039,21 @@ machu.2.ace <- function(tip.resp, tree, timeslice=NULL, unc=F, csv.name=NULL, ac
   times <- c(rep(0, ntips), branching.times(tree))
   names(times) <- treenames
   traitnames <- colnames(tip.resp)
-  
+
   # combine branching times, present-day traits, and nodal traits into a single table
   table <- rbind(tip.resp, do.call(cbind, lapply(acelist, function(x) x$ace)))
   table <- cbind(times, table)
   rownames(table) <- treenames
-  
+
   # if uncertainty is being considered, add this information
   if (unc==T){
 
     # get 95% confidence intervals from acelist
     CI95s <- lapply(acelist, function(x) x$CI95)
-    
+
     # name the CI95 samples
     for (i in 1:length(CI95s)) colnames(CI95s[[i]]) <- paste0(traitnames[i], c("_lCI", "_uCI"))
-    
+
     # turn into a table
     CI95s <- do.call(cbind, CI95s)
 
@@ -1062,49 +1062,49 @@ machu.2.ace <- function(tip.resp, tree, timeslice=NULL, unc=F, csv.name=NULL, ac
     for (i in seq(from=2, length.out=length(traitnames))){
       index <- c(index, i, grep(traitnames[i-1], colnames(CI95s))+ncol(table))
     }
-    
+
     # get filler values for present-day taxa and add to "CI95s"
-    fill <- data.frame(table[1:ntips, rep(2:length(table), each=2)]) 
+    fill <- data.frame(table[1:ntips, rep(2:length(table), each=2)])
     colnames(fill) <- colnames(CI95s)
     CI95s <- rbind(fill, CI95s)
-    
+
     # interleave with master table
     table <- cbind(table, CI95s)[index]
   }
-  
+
   # the BM ace model is agnostic to what kind of data each variable is so some of them can become nonsensical, i.e. a negative stdev
   # convert all stdevs below zero to their absolute value (usually any negative stdevs will be small so it will still be a low number)
   # clamping at zero unfortunately doesn't make much sense either
   table[,grep("_stdev", colnames(table))] <- abs(table[,grep("_stdev", colnames(table))])
   # note: for certain variables, a mean<0 is also nonsensical (i.e. rainfall), but for some it is not (i.e. temperature).
   # Because the software is agnostic as to what each variable represents, I have to take the risk that a mean can fall below zero when it isn't supposed to
-  
+
   #####################
   ### 3. Timeslices ###
   #####################
-  
+
   # if timeslice is provided, take timeslices for each branch-taxon present
   if (is.null(timeslice) == F){
-    
+
     if (max(timeslice) > max(times)) stop("At least one timeslice is older than the tree.")
-    
+
     # get edge matrix from ape showing how nodes and tips are connected
-    edge <- tree$edge 
+    edge <- tree$edge
 
     # output a list of trait tables, one per timeslice
     table <- lapply(timeslice, function(ts){
-      
+
       # get each branch subtending that timeslice (each branch (br) is a row in "edge")
       t <- do.call(rbind, apply(edge, 1, function(br){
-        
+
         # test if that branch subtends the timeslice
         if (table[br[1],1] > ts && ts > table[br[2],1]){
-          
+
           # get "branch-taxon" name and indices of branch start/end-points for output table
           info <- data.frame(branch_start=br[1],
                              branch_end=br[2])
           rownames(info) <- paste0(rownames(table)[br[1]], "-", rownames(table)[br[2]])
-          
+
           # for every trait, calculate a, the value of the trait at that timeslice for that branch
           values <- do.call(cbind, apply(table[,-1], 2, function(trait){
             xi <- trait[br[1]]                 # trait value for tip/node i (branch origin)
@@ -1126,14 +1126,14 @@ machu.2.ace <- function(tip.resp, tree, timeslice=NULL, unc=F, csv.name=NULL, ac
   } else {
     # if timeslice is not provided, format the original tips & nodes only table as a single-element list and return that
     table <- list(tips_and_nodes=table)
-  } 
+  }
   # write parameters to file if csv.name was provided
   if (is.null(csv.name) == FALSE){
     if (verbose==T) print(paste0("Writing output to ", csv.name, "."))
     output <- data.frame()
     for (i in 1:length(table)){
       add <- data.frame(rep(names(table)[i], nrow(table[[i]])),
-                        rownames(table[[i]]), 
+                        rownames(table[[i]]),
                         apply(table[[i]], 2, as.numeric))
       output <- rbind(output, add)
     }
@@ -1158,14 +1158,14 @@ machu.2.ace <- function(tip.resp, tree, timeslice=NULL, unc=F, csv.name=NULL, ac
 #'ace <- machu.ace.load("ace.csv")
 #'@export
 machu.ace.load <- function(file){
-  
+
   # load file and get different scenarios
   raw <- read.csv(file)
   scenarios <- unique(raw$scenario)
-  
+
   # convert raw table to proper format
   out <- lapply(scenarios, function(s){
-    
+
     # create dataframe
     scenario <- subset(raw, scenario==s)
     rownames(scenario) <- scenario$taxon
@@ -1180,14 +1180,14 @@ machu.ace.load <- function(file){
 #'Create Bioclim niche models for each taxon in each timeslice
 #'
 #'@param ace Output of machu.2.ace(). Can be subsetted.
-#'@param clim Paleoclimatic data. The best format is SpatRaster from the terra package, or a list of SpatRasters (via the function list()). A group of SpatRasters from multiple timeslices joined with c() is acceptable, but requires the use of raster.sets to differentiate. A RasterStack or list of RasterStacks (via list()) from the raster package is also acceptable. 
-#'@param taxa Optional, specifies which taxa to run. If the input is not timeslices but tips and nodes (names(ace)=="tips_and_nodes"), 'taxa' can be a numeric or character vector (i.e., 1:3, c(1,4), or c("taxon1", "taxon2")). If the input is timeslices (names(ace)!="tips_and_nodes"), only a character vector can be used. If none of the taxa are present in a given timeslice, that timeslice will be skipped. 
+#'@param clim Paleoclimatic data. The best format is SpatRaster from the terra package, or a list of SpatRasters (via the function list()). A group of SpatRasters from multiple timeslices joined with c() is acceptable, but requires the use of raster.sets to differentiate. A RasterStack or list of RasterStacks (via list()) from the raster package is also acceptable.
+#'@param taxa Optional, specifies which taxa to run. If the input is not timeslices but tips and nodes (names(ace)=="tips_and_nodes"), 'taxa' can be a numeric or character vector (i.e., 1:3, c(1,4), or c("taxon1", "taxon2")). If the input is timeslices (names(ace)!="tips_and_nodes"), only a character vector can be used. If none of the taxa are present in a given timeslice, that timeslice will be skipped.
 #'@param resp.curv If TRUE, create ancestral niche models with skew-normal response curves. If FALSE, assume response is a uniform distribution within certain confidence limits specified by 'clip.amt'. This produces a binary niche model. Default = T.
 #'@param clip.Q If TRUE, clip the tails of each response curve at certain confidence limits specified by 'clip.amt' (default is 0.95). Produces "cleaner" models. Default = T.
 #'@param clip.amt Float value between 0 and 1 specifying confidence limits at which clip.Q=T or resp.curv=F operates. For example, at the default (0.95), the limits are the 0.025\% and 0.975\% quantiles for each response curve.
 #'@param clip.samples The number of random samples taken by rsn() while determining confidence limits when clip.Q=T or resp.curv=F. Default = 10000. Decreasing may result in a speed boost at the cost of accuracy.
 #'@param ocean A string or numeric specifying null or "ocean" pixels in the input rasters. Default = NA.
-#'@param output.folder A string specifying a folder name to write outputs to. Outputs are only written if this argument is specified. Output will be in .tif format (GeoTiff) and given default names in the format "scenario_taxon.tif". 
+#'@param output.folder A string specifying a folder name to write outputs to. Outputs are only written if this argument is specified. Output will be in .tif format (GeoTiff) and given default names in the format "scenario_taxon.tif".
 #'@param verbose If TRUE, print to screen certain checks, statuses, and progress updates. Default = F.
 #'
 #'@details
@@ -1262,14 +1262,14 @@ machu.ace.load <- function(file){
 #'@import terra
 #'@import sn
 #'@export
-machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex.disc=NULL, clim.vars=NULL, taxa=NULL, resp.curv=T, clip.Q=T, clip.amt=0.95, clip.samples=10000, ocean=NA, output.folder=NULL, verbose=F) {
-  
+machu.3.anc.niche <- function(ace, clim, taxa=NULL, resp.curv=T, clip.Q=T, clip.amt=0.95, clip.samples=10000, ocean=NA, output.folder=NULL, verbose=F) {
+
   #############################################
   ### 1: Prune taxon set and perform checks ###
   #############################################
-  
+
   if (class(ace)!="list") stop("'ace' must be a list. If subsetting, use [] rather than [[]].")
-  
+
   if (is.null(taxa)==F){
     if (class(taxa)!="character" && names(ace)[1]!="tips_and_nodes") stop("If 'ace' is composed of timeslices, 'taxa' must be a character vector, because the same taxa may have different numerical indices in different timeslices.")
     # if specific taxa are selected, modify ace to only include those taxa
@@ -1283,36 +1283,36 @@ machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex
       for (i in 1:length(ace)) print(paste0(names(ace)[i], ": ", paste(rownames(ace[[i]]), collapse=", ")))
     }
   }
-  
+
   # detect whether unc was applied to 'ace' in machu.2.ace()
   if (length(grep("_uCI$", colnames(ace[[1]]))) > 0 && length(grep("_lCI$", colnames(ace[[1]]))) > 0){
-    unc <- T 
+    unc <- T
     if (verbose==T) print("Detected uncertainty samples in 'ace' ('unc' in machu.2.ace()).")
   } else {
     unc <- F
     if (verbose==T) print("Did not detect uncertainty samples in 'ace' ('unc' in machu.2.ace()).")
   }
-  
+
   # detect which columns need to be removed later because they include accessory info (depends on whether the form of 'ace' is "tips_and_nodes")
   if (names(ace)[1]!="tips_and_nodes") cr <- c(1,2) else cr <- 1
-  
+
   # check that clip.amt is between 0 and 1
   if (clip.amt < 0 | clip.amt > 1) stop("'clip.amt' must be between 0 and 1.")
-  
+
   ##############################
   ### 2: Format climate data ###
   ##############################
-  
+
   # solo RasterStack: convert to SpatRaster and put into a single-element list
   if (class(clim)=="RasterStack"){
     clim <- list(rast(clim))
     if (verbose==T) print("Solo RasterStack converted to SpatRaster format.")
-  } 
+  }
   # list of RasterStacks: convert to SpatRaster
   if (class(clim)=="list" && class(clim[[1]])=="RasterStack"){
     clim <- lapply(clim, rast)
     if (verbose==T) print("Multiple RasterStacks converted to SpatRaster format.")
-  } 
+  }
   # solo SpatRaster: put into a single-element list
   if (class(clim)=="SpatRaster" && is.null(raster.sets)==T){
     clim <- list(clim)
@@ -1331,7 +1331,7 @@ machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex
   ########################################
   ### 3: reconstruct climate responses ###
   ########################################
-  
+
   # create association table where each row matches a raster to a timeslice (by index)
   # the first column of 'assoc' is raster indices ('clim'); the second column is timeslice indices ('ace')
   # 'all.out.names' will be the names given to the main elements of the output list
@@ -1339,38 +1339,38 @@ machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex
   # 1. clim & ace are same length: raster 1 corresponds to timeslice 1, and so on
   if (length(clim)==length(ace)){
     assoc <- matrix(rep(1:length(ace), 2), ncol=2)
-    all.out.names <- names(ace) 
+    all.out.names <- names(ace)
     i=2
-  } 
+  }
   # 2. clim of length 1 & multiple timeslices: all timeslices correspond to the same singular raster
   if (length(clim)==1 && length(clim) < length(ace)){
     assoc <- matrix(c(rep(1, length(ace)), 1:length(ace)), ncol=2)
     all.out.names <- names(ace)
     i=2
-  } 
+  }
   # 3. multiple rasters & ace of length 1: all rasters correspond to the same singular timeslice
   if (length(ace)==1 && length(ace) < length(clim)){
     assoc <- matrix(c(1:length(clim), rep(1, length(clim))), ncol=2)
     all.out.names <- names(clim)
     i=1
-  } 
+  }
   # 4. ace & clim are unequal length, & all length>1: raster 1 corresponds to timeslice 1, and so on, until either ace or clim ends (some will be unused)
   if (length(ace)>1 && length(clim)>1 && length(clim)!=length(ace)){
     assoc <- matrix(rep(intersect(1:length(ace), 1:length(clim)), 2), ncol=2)
     all.out.names <- names(ace)
     i=2
-  } 
+  }
   colnames(assoc) <- c("clim", "ace")
   if (verbose==T) print("Associating scenarios ('ace') with rastersets ('clim') (numbers are indices, rows are associations):")
   if (verbose==T) print(assoc)
 
   # for every timeslice/rasterset combo (i.e., a row in assoc)...
   all.out <- apply(assoc, 1, function(timeset){
-    
+
     # get all taxa in that timeslice
     timeslice <- ace[[timeset[2]]][,-cr]
     # 'cr' was set earlier and removes columns containing extraneous info (branch start/end for timeslices, time for tips_and_nodes)
-    
+
     # for every taxon in that timeslice...
     out.bioclims <- lapply(split(timeslice, seq(nrow(timeslice))), function(taxon){
 
@@ -1381,13 +1381,13 @@ machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex
 
       # for every climate layer (by index)...
       lyrs <- lapply(1:n.lyr, function(lyr.ind){
-        
+
         # get principal climate response values for this layer
         lyr.pars <- names(taxon[crv[lyr.ind,]])
         mean  <- taxon[,lyr.pars[grep("mean",  lyr.pars)]]
         stdev <- taxon[,lyr.pars[grep("stdev", lyr.pars)]]
         skew  <- taxon[,lyr.pars[grep("skew",  lyr.pars)]]
-        
+
         # this section is included for compatibility with loaded ace files from machu.ace.load()
         # in that case, the above section is enough. For results direct from machu.2.ace(), this section is necessary to unlist climate response values
         if (class(mean)!="numeric")  mean  <- unlist(mean)
@@ -1396,24 +1396,24 @@ machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex
 
         # get raster layer from within the rasterset & convert to vector form
         lyr <- c(as.matrix(clim[[timeset[1]]][[lyr.ind]]))
-        lyr[is.na(lyr)] <- 0 
-        
+        lyr[is.na(lyr)] <- 0
+
         # convert raster to suitability:
         # (what's cool about this part is that it works regardless of if unc==T or not)
-        # get every possible combination (n=27) of median, 95% upper CI, and 95$ lower CI for mean, stdev, and skew 
+        # get every possible combination (n=27) of median, 95% upper CI, and 95$ lower CI for mean, stdev, and skew
         combos <- expand.grid(list(mean=mean, stdev=stdev, skew=skew))
-        
+
         # project raster into suitability according to each combination of skew-normal parameters
         # 'projVal' is a table of 27 cols where each col is the suitability under a different combo of sn params
         projVal <- apply(combos, 1, function(combo){
           combo <- as.numeric(combo)
           # project raster into suitability using skew-normal dist (xi=mean, omega=sd, alpha=skew)
           y <- dsn(lyr, xi=combo[1], omega=combo[2], alpha=combo[3])
-          
+
           # if clip.Q is on, clip quantiles from distributions to produce cleaner models
           if (clip.Q==T | resp.curv==F){
             # estimate quantiles for the skew-normal distribution (decrease clip.samples for possible speed boost, but less accuracy)
-            Q <- quantile(x=rsn(clip.samples, xi=combo[1], omega=combo[2], alpha=combo[3]), 
+            Q <- quantile(x=rsn(clip.samples, xi=combo[1], omega=combo[2], alpha=combo[3]),
                            probs=c((1-clip.amt)/2, clip.amt+(1-clip.amt)/2), names=F)
             # remove suitability values beyond those quantiles according to their position in the raster
             y[lyr < Q[1] | lyr > Q[2]] <- 0
@@ -1422,10 +1422,10 @@ machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex
           }
           return(y)
         })
-        
+
         # sum the different runs, should provide a more generalized result
         projVal <- rowSums(projVal)
-        
+
         # if unc=T & resp.curv=F, the output bioclim will not be binary. Convert to binary here
         if (unc==T & resp.curv==F){
           # get a lower quantile specific to the distribution of unique summed suitability values in projVal
@@ -1435,34 +1435,34 @@ machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex
           # make a binary model by converting all nonzero values to 1
           projVal[projVal >= LQ] <- 1
         }
-        
+
         # rescale suitability values from 0-1 so that they can be compared
         projVal <- projVal/max(projVal)
-        
+
         # convert suitability values back into raster form
         r <- matrix(projVal, nrow=dim(clim[[timeset[1]]][[lyr.ind]])[1], ncol=dim(clim[[timeset[1]]][[lyr.ind]])[2], byrow=T)
         r <- rast(r)
         set.ext(r, ext(clim[[timeset[1]]][[lyr.ind]])) # match extent
         crs(r) <- crs(clim[[timeset[1]]][[lyr.ind]]) # match coordinate reference system
         names(r) <- names(clim[[timeset[1]]][[lyr.ind]])
-        
+
         return(r)
       })
-      
+
       # convert 'lyrs' to a single SpatRaster object with multiple layers
       # yes I know this is the weirdest possible way to do it but idk how else. I guess the smart thing would have been to use app or lapp from the beginning but I didn't know about it then and now it's too late
       out.bioclim <- eval(parse(text=paste0("c(", paste0("lyrs[[", 1:length(lyrs), "]]", collapse=","),")")))
-      
+
       # find limiting values from all rasters---this actually creates the Bioclim niche model
       out.bioclim <- app(out.bioclim, min)
-      
-      # create a mask that excludes ocean pixels 
+
+      # create a mask that excludes ocean pixels
       mask <- clim[[timeset[[1]]]][[1]] # just get one example of raster from this timeslice (all layers should have same ocean pixels)
       if (is.na(ocean)) mask[!is.na(mask)] <- 1 else mask[mask != ocean] <- 1
- 
+
       # use mask to exclude ocean pixels from output niche model
       out.bioclim <- mask*out.bioclim
-      
+
       names(out.bioclim) <- rownames(taxon)
       return(out.bioclim)
     })
@@ -1471,7 +1471,7 @@ machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex
     return(out.bioclims)
   })
   names(all.out) <- all.out.names
-  
+
   # write rasters to files if an output folder was specified
   if (is.null(output.folder)==F){
     if (verbose==T) print(paste0("Writing ", sum(sapply(all.out, length)), " rasters to ", output.folder, ":"))
@@ -1527,10 +1527,10 @@ machu.3.anc.niche <- function(ace, clim, raster.sets=NULL, regex.ext=NULL, regex
 #'@import terra
 #'@export
 machu.plotmap <- function(model, col=1, axes=T, title=T, title.cex=1, to.scale=F, plot="separately", plot.asp=16/9) {
-  
+
   # pick color
   colr.o <- list()
-  
+
   if (length(col)>1 & is.character(col)==T){
     colr.o <- col
   } else {
@@ -1556,8 +1556,8 @@ machu.plotmap <- function(model, col=1, axes=T, title=T, title.cex=1, to.scale=F
     par(mfrow=arr, mar=c(mar.bot, mar.left, mar.top, mar.right))
   } else if (plot == "separate" | plot == "separately" | plot == "sep" | plot == "s"){
     par(mfrow=c(1,1),  mar=c(mar.bot, mar.left, mar.top, mar.right))
-  } 
-  
+  }
+
   if (to.scale==T) {
     # get mins and maxes for all rasters
     minmaxes <- do.call(c, lapply(model, function(x){
@@ -1567,7 +1567,7 @@ machu.plotmap <- function(model, col=1, axes=T, title=T, title.cex=1, to.scale=F
     min <- min(minmaxes)
     max <- max(minmaxes)
   }
-  
+
   # for every scenario...
   invisible(lapply(names(model), function(scenario){
     # and for every taxon in that scenario...

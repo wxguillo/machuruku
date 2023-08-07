@@ -7,10 +7,6 @@
 machu.3.anc.niche(
   ace,
   clim,
-  raster.sets = NULL,
-  regex.ext = NULL,
-  regex.disc = NULL,
-  clim.vars = NULL,
   taxa = NULL,
   resp.curv = T,
   clip.Q = T,
