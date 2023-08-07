@@ -1,140 +1,189 @@
 library(machuruku)
-library(raster)
-library(ape)
-library(treeio)
-######## load the data
 
+######## load the data
 # set working directory
 setwd("YOUR/DIRECTORY/tutorial")
 
-# current climate data
-bio1 <- raster("climate/current/bio_1.tif")
-bio12 <- raster("climate/current/bio_12.tif")
-
-# early pleistocene data
-bio1mis19 <- raster("climate/mis19/bio_1.tif")
-bio12mis19 <- raster("climate/mis19/bio_12.tif")
-
-# mid pliocene warm period
-bio1mpwp <- raster("climate/mpwp/bio_1.tif")
-bio12mpwp <- raster("climate/mpwp/bio_12.tif")
-
-# pliocene data
-bio1m2 <- raster("climate/m2/bio_1.tif")
-bio12m2 <- raster("climate/m2/bio_12.tif")
-
-# stack climate data
-ClimCur <- stack(bio1, bio12)
-ClimMis19 <- stack(bio1mis19, bio12mis19)
-ClimMpwp <- stack(bio1mpwp, bio12mpwp)
-ClimM2 <- stack(bio1m2, bio12m2)
+# load tree
+library(ape)
+tree <- read.nexus("basslerigroup.treefile")
+plot(tree)
 
 # load occurrence data
-occ	<- read.delim("basslerigroup.csv", h=T, sep=",")
+occ <- read.csv("basslerigroup.csv")
 
-# load tree
-bassleritree <- read.nexus("basslerigroup.treefile")
+# load climate data
+library(terra)
+current <- rast(list.files("climate/current", full.names=T))
+mis19 <- rast(list.files("climate/mis19", full.names=T))
+mpwp <- rast(list.files("climate/mpwp", full.names=T))
+m2 <- rast(list.files("climate/m2", full.names=T))
 
-######### exploring the data
-# visualize raster layer
-plot(bio1)
-
-# visualize occurrence data w/ legend
-taxa <- c(as.character(unique(occ$species)))
-for (i in taxa){
-  points(subset(occ, species==i)$long_DD, subset(occ, species==i)$lat_DD, col = which(taxa==i)+3, pch=16, cex=0.75)
-}
-legend("topright", legend = c(as.character(unique(occ$species))), col = 4:8, pch=16)
-
-# visualize phylogenetic tree
-machu.treeplot(bassleritree, upperX = 2, timelabeloffset = 1, timeslice = 3.3)
+# plot climate
+plot(current$bio_1)
+# add occurrence data
+taxa <- unique(occ$species)
+cols <- c("cyan", "yellow", "red", "orange")
+for (i in taxa) points(subset(occ, species==i)$long, subset(occ, species==i)$lat, 
+                       col = cols[which(taxa==i)], 
+                       pch=19, cex=0.75)
+legend(x = "bottomleft", legend = taxa, col = cols, pch=19, bty="n")
 
 ######### quick start
-resp <- machu.1.tip.resp(occ, ClimCur, verbose = T)
-ace <- machu.2.ace(resp, bassleritree, T=3.3)
-mod <- machu.3.anc.niche(ace, ClimM2, verbose = T)
-par(mfrow=c(1,2))
-machu.plotmap(mod)
+# visualize tree with timeslice at 3.3 Ma
+machu.treeplot(tree, timeslice=3.3)
+# estimate tip response curves
+resp <- machu.1.tip.resp(occ, current)
+# estimate ancestral niches at timeslice
+ace <- machu.2.ace(resp, tree, timeslice=3.3, unc=T)
+# project ancestral niches into paleoclimate data
+mod <- machu.3.anc.niche(ace, m2)
+# visualize ancestral niches
+machu.plotmap(mod, plot="together", plot.asp=20/9, axes=F, to.scale=T)
 
 ######### detailed guide
-# calculate tip responses with rarefied occurrence data
-occ.rarefied <- machu.occ.rarefy(in.pts = occ, rarefy.dist = 10)
-resp <- machu.1.tip.resp(occ.rarefied, ClimCur, verbose = T)
-# plot rarefied points
-par(mfrow=c(1,1))
-plot(bio1, axes = F, xlim = c(-78, -74), ylim = c(-10,-5))
-points(occ$long_DD, occ$lat_DD, pch = 16, cex = 0.75)
-taxa <- c(as.character(unique(occ.rarefied$species)))
-for (i in taxa){
-  points(subset(occ.rarefied, species==i)$long_DD, subset(occ.rarefied, species==i)$lat_DD, col = which(taxa==i)+3, pch=16, cex=0.75)
-}
-legend("topright", legend = c(as.character(unique(occ$species))), col = 4:8, pch=16)
-# visualize response curves
-machu.respplot(resp)
-machu.respplot(resp, taxa = "bassleri", linewidth = 2, linecolor = "coral3")
-machu.respplot(resp, taxa = c(1,4), clim = "bio_1", linewidth = 2, linecolor = "coral3")
-machu.respplot(resp, taxa = c(1,4), clim = "bio_1", linewidth = 2, comb = T)
-machu.respplot(resp, linewidth = 2, comb = T, legend.pos = "topright")
+### 1. estimate tip response curves
+resp <- machu.1.tip.resp(occ, current, verbose=T)
+resp[,1:6]
+# visualize response curves for two variables
+machu.respplot(resp, clim=c("bio_1", "bio_10"), plot="t")
+# visualize response curves for all variables
+machu.respplot(resp, plot="t", legend.cex=0.6)
+# visualize niche models
+machu.1.tip.resp(occ, current, plot="t")
+dev.off()
+machu.1.tip.resp(occ, current, plot="s", plot.points=T)
+# output niche models instead of response table
+mod <- machu.1.tip.resp(occ, current, output.bioclim=T)
+par(mfrow=c(2,2), mar=c(0,0,2,0))
+lapply(1:4, function(x) plot(mod[[x]], axes=F, legend=F, box=F, main=names(mod)[x]))
+
+# rarefy occurrence data
+occ.r <- machu.occ.rarefy(occ, rarefy.dist=10, plot=T)
+resp <- machu.1.tip.resp(occ.r, current, plot="t", plot.points=T, verbose=T)
+
+# select most important climate variables
+# contribution method
+micv.contrib <- machu.top.env(occ.r, current, method="contrib", contrib.greater=5, verbose=T)
+micv.contrib
+# nvars method
+micv.nvars <- machu.top.env(occ.r, current, method="nvars", nvars.save=7, verbose=T)
+micv.nvars
+# estimate method
+micv.est <- machu.top.env(occ.r, current, method="estimate", verbose=T)
+micv.est
+# reduce climate datasets to only most important variables
+current.reduced <- current[[micv.nvars]]
+mis19.reduced <- mis19[[micv.nvars]]
+mpwp.reduced <- mpwp[[micv.nvars]]
+m2.reduced <- m2[[micv.nvars]]
+# re-run tip response table with reduced climate dataset and rarefied occurrence data
+resp <- machu.1.tip.resp(occ.r, current.reduced, plot="t", plot.points=T)
+
+### 2. estimate ancestral niches
 # visualize time-slices
-machu.treeplot(bassleritree, upperX = 2, timelabeloffset = 1, timeslice = c(0,0.787,3.205,3.3))
-# run one time-slice for each time period
-ace.mis19 <- machu.2.ace(resp, bassleritree, T=0.787)
-ace.mpwp <- machu.2.ace(resp, bassleritree, T=3.205)
-ace.M2 <- machu.2.ace(resp, bassleritree, T = 3.3)
-# reconstruct niches for all nodes
-ace.all <- machu.2.ace(resp, bassleritree)
-# visualize climate evolution
-machu.respplot(ace.all, comb = T, legend.pos = "topright")
-# reconstruct w/ uncertainty
-ace.M2.unc <- machu.2.ace(resp, bassleritree, T = 3.3, n.unc = 4)
-# build new trees with 95 HPD
-# load tree as treedata object
-bassleribeast <- read.beast("basslerigroup.treefile")
-trees <- machu.tree.unc(bassleribeast)
-machu.treeplot(trees, upperX = 3, timelabeloffset = 1.25, nodecirclecolor = "darkseagreen2", timeslice = 2.49)
-# run machu.2.ace with each tree separately
-ace.LCI <- machu.2.ace(resp, as.phylo(trees$`LCI tree`), T = 2.49)
-ace.input <- machu.2.ace(resp, as.phylo(trees$`input tree`), T = 2.49)
-ace.UCI <- machu.2.ace(resp, as.phylo(trees$`UCI tree`), T = 2.49)
-# build new trees with posterior
-trees <- machu.trees.unc("posterior.trees")
-machu.treeplot(trees, upperX = 7, tiplabelsize = 2.5,
-               timelabeloffset = 1.01, timelabelsize = 2,
-               nodecirclecolor = "darkseagreen2", nodecirclesize = 5, nodelabelsize = 3)
-# save machu.2.ace() output
-ace.all <- machu.2.ace(resp, bassleritree, savename = "ace_all")
-# load ace_all.csv
-ace.all <- machu.ace.load("ace_all.csv")
-# build models with machu.3.anc.niche()
-mod <- machu.3.anc.niche(ace.M2, ClimM2, verbose = T)
-par(mfrow=c(1,2))
-machu.plotmap(mod)
-# build present-day models for all taxa including ancestors
-mod.all <- machu.3.anc.niche(ace.all, ClimCur, verbose = T)
-par(mfrow=c(2,4))
-machu.plotmap(mod.all)
-plot(bassleritree)
-# build present-day models for only extant taxa
-mod.extant <- machu.3.anc.niche(ace.all, ClimCur, verbose = T, taxa = 1:4)
-par(mfrow=c(2,2))
-machu.plotmap(mod.extant)
-# turn clip.Q off
-mod.clip.Q <- machu.3.anc.niche(ace.M2, ClimM2, verbose = T, clip.Q = F)
-par(mfrow=c(2,2))
-machu.plotmap(mod)
-machu.plotmap(mod.clip.Q)
-# use resp.curv = F
-mod.resp.curv <- machu.3.anc.niche(ace.M2, ClimM2, verbose = T, resp.curv = F)
-par(mfrow=c(2,2))
-machu.plotmap(mod)
-machu.plotmap(mod.resp.curv)
-# use calc.unc = T
-mod.calc.unc <- machu.3.anc.niche(ace.M2.unc, ClimM2, verbose = T, calc.unc = T)
-par(mfrow=c(2,2))
-machu.plotmap(mod)
-machu.plotmap(mod.calc.unc)
-# clip with linear distance weighting
-clip <- machu.geo.idw(mod[[2]], occ, taxa = "silverstonei", buffer.dist = 100, kernel.size = 2, MCP.percent = 50)
-par(mfrow=c(1,2))
-plot(mod[[2]])
-plot(clip)
+dev.off()
+options(warn=-1)
+machu.treeplot(tree, timeslice = c(0.787,3.205,3.3))
+machu.treeplot(tree, timeslice = c(0.787,3.205,3.3), x.l.lim = 13, x.u.lim=-3, nodelabsize = 0.35, col = "skyblue", timelaboffset = -0.2)
+
+# estimate ancestral niches at timeslices
+resp <- resp[[2]]
+ace.ts <- machu.2.ace(resp, tree, timeslice=c(0.787,3.205,3.3))
+ace.ts
+names(ace.ts)
+ace.ts[[1]][,1:8]
+ace.ts[[2]][,1:8]
+
+# estimate ancestral niches at each node
+ace.n <- machu.2.ace(resp, tree)
+names(ace.n)
+ace.n[[1]][,1:7]
+# visualize niche evolution
+machu.respplot(ace.n[[1]], clim="bio_12", fill=T)
+
+# include uncertainty
+ace.ts.u <- machu.2.ace(resp, tree, timeslice=c(0.787,3.205,3.3), unc=T)
+ace.ts.u[[1]][,1:11]
+# visualize uncertainty
+machu.respplot(ace.ts.u[[1]], clim="bio_12")
+
+# characterize divergence time uncertainty
+# reload tree as 'treedata' object
+library(treeio)
+beast <- read.beast("basslerigroup.treefile")
+beast
+do.call(rbind, as_tibble(beast)$height_0.95_HPD)
+# run tree-uncertainty utility from a single input tree
+beast.trees <- machu.tree.unc(beast)
+names(beast.trees)
+beast.trees
+# visualize trees
+machu.treeplot(beast.trees, timeslice=c(0.787,3.205,3.3), nodelabsize=0.5, timelaboffset=-0.15, col="skyblue")
+# re-run machu.2.ace with the new trees for comparison
+ace.lCItree <- machu.2.ace(resp, beast.trees$lCItree, timeslice=3.3)
+ace.inputtree <- machu.2.ace(resp, beast.trees$inputtree, timeslice=3.3)
+ace.uCItree <- machu.2.ace(resp, beast.trees$uCItree, timeslice=3.3)
+# count number of taxa in each of the new outputs
+c(nrow(ace.lCItree[[1]]), nrow(ace.inputtree[[1]]), nrow(ace.uCItree[[1]]))
+
+# run tree-uncertainty utility from a posterior
+post.trees <- machu.tree.unc("posterior.trees")
+# visualize trees
+machu.treeplot(post.trees, timelabs=F, nodelabs=F)
+
+# save ace output
+ace.ts <- machu.2.ace(resp, tree, timeslice=c(0.787,3.205,3.3), csv.name="ace_ts.csv")
+read.csv("ace_ts.csv")[,1:7]
+# load ace output
+ace.ts <- machu.ace.load("ace_ts.csv")
+
+### 3. project ancestral niche models into paleoclimate
+# multiple timeslices into multiple paleoclimates
+clim <- list(mis19.reduced, mpwp.reduced, m2.reduced)
+mod.ts <- machu.3.anc.niche(ace.ts, clim, verbose=T)
+mod.ts
+names(mod.ts)
+names(mod.ts[[1]])
+sapply(mod.ts, length)
+machu.plotmap(mod.ts, plot="t", axes=F, title.cex=0.85, to.scale=T, plot.asp=20/9)
+
+# projecting while accounting for uncertainty
+mod.ts.u <- machu.3.anc.niche(ace.ts.u, clim, verbose=T)
+machu.plotmap(mod.ts.u, plot="t", axes=F, title.cex=0.85, to.scale=T, plot.asp=20/9)
+
+# clipping niche models
+mod.ts.u.nc <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], clip.Q=F) # no clipping
+mod.ts.u.c95 <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], clip.Q=T) # default clipping (95%)
+mod.ts.u.c50 <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], clip.Q=T, clip.amt=0.5) # stringent clipping (50%)
+# combine and visualize
+clip.demo <- c(mod.ts.u.nc, mod.ts.u.c95, mod.ts.u.c50)
+names(clip.demo) <- c("no clipping", "clipping at 95%", "clipping at 50%")
+machu.plotmap(clip.demo, plot="t", axes=F, to.scale=T, plot.asp=1)
+
+# producing binary models
+mod.ts.u.b95 <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], resp.curv=F) # default clipping (95%)
+mod.ts.u.b75 <- machu.3.anc.niche(ace.ts.u[3], clim[[3]], resp.curv=F, clip.amt=0.75) # stringent clipping (75%)
+# combine and visualize
+binary.demo <- c(mod.ts.u.b95, mod.ts.u.b75)
+names(binary.demo) <- c("clipping at 95%", "clipping at 75%")
+machu.plotmap(binary.demo, plot="t", title.cex=0.8, axes=F, plot.asp=1)
+
+# one timeslice into multiple paleoclimates
+clim <- list(mis19.reduced, mpwp.reduced, m2.reduced)
+mod.multipc <- machu.3.anc.niche(ace.n, clim, taxa=1:4, clip.Q=F, verbose=T)
+# visualize
+machu.plotmap(mod.multipc, col=2, plot="t", axes=F, to.scale=T)
+
+# multiple timeslices into a single paleoclimate
+mod.multi.ts <- machu.3.anc.niche(ace.ts.u, m2.reduced, clip.Q=F, verbose=T)
+# visualize
+machu.plotmap(mod.multi.ts, col=3, plot="t", axes=F, to.scale=T)
+
+# differing numbers of timeslices and paleoclimates (all >1)
+machu.3.anc.niche(ace.ts[1:2], clim, verbose=T) %>% invisible
+
+# save outputs to folder
+machu.3.anc.niche(ace.ts, clim, output.folder=getwd(), verbose=T) %>% invisible
+list.files(pattern=".tif")
+
