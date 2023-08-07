@@ -68,7 +68,7 @@ Simply use `plot()` to visualize the tree:
 ```
 plot(tree)
 ```
-![plot() tree](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/plot%20tree.png?raw=true)
+![simpletree](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/simpletree.png?raw=true)
 
 #### Loading occurrence data
 Loading occurrence data is simple. Use the `read.csv` or `read.delim` function:
@@ -98,7 +98,7 @@ cols <- c("cyan", "yellow", "red", "orange")
 for (i in taxa) points(subset(occ, species==i)$long, subset(occ, species==i)$lat, 
                        col = cols[which(taxa==i)], 
                        pch=19, cex=0.75)
-legend(x = "bottomleft", legend = taxa, col = cols, pch=19, bty="n")
+legend(-81, -11, legend = taxa, col = cols, pch=19, bty="n")
 ```
 ![bio1 w/ points](https://github.com/wxguillo/machuruku/blob/main/tutorial/images/bio1%20w%20pts.png?raw=true)
 
