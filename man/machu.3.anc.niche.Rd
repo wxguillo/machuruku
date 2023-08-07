@@ -8,6 +8,7 @@ machu.3.anc.niche(
   ace,
   clim,
   taxa = NULL,
+  raster.sets = NULL,
   resp.curv = T,
   clip.Q = T,
   clip.amt = 0.95,
@@ -23,6 +24,8 @@ machu.3.anc.niche(
 \item{clim}{Paleoclimatic data. The best format is SpatRaster from the terra package, or a list of SpatRasters (via the function list()). A group of SpatRasters from multiple timeslices joined with c() is acceptable, but requires the use of raster.sets to differentiate. A RasterStack or list of RasterStacks (via list()) from the raster package is also acceptable.}
 
 \item{taxa}{Optional, specifies which taxa to run. If the input is not timeslices but tips and nodes (names(ace)=="tips_and_nodes"), 'taxa' can be a numeric or character vector (i.e., 1:3, c(1,4), or c("taxon1", "taxon2")). If the input is timeslices (names(ace)!="tips_and_nodes"), only a character vector can be used. If none of the taxa are present in a given timeslice, that timeslice will be skipped.}
+
+\item{raster.sets}{Character vector with the names of the various raster sets. Only used if a single raster object containing all paleoclimates is provided for 'clim'.}
 
 \item{resp.curv}{If TRUE, create ancestral niche models with skew-normal response curves. If FALSE, assume response is a uniform distribution within certain confidence limits specified by 'clip.amt'. This produces a binary niche model. Default = T.}
 

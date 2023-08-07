@@ -1182,6 +1182,7 @@ machu.ace.load <- function(file){
 #'@param ace Output of machu.2.ace(). Can be subsetted.
 #'@param clim Paleoclimatic data. The best format is SpatRaster from the terra package, or a list of SpatRasters (via the function list()). A group of SpatRasters from multiple timeslices joined with c() is acceptable, but requires the use of raster.sets to differentiate. A RasterStack or list of RasterStacks (via list()) from the raster package is also acceptable.
 #'@param taxa Optional, specifies which taxa to run. If the input is not timeslices but tips and nodes (names(ace)=="tips_and_nodes"), 'taxa' can be a numeric or character vector (i.e., 1:3, c(1,4), or c("taxon1", "taxon2")). If the input is timeslices (names(ace)!="tips_and_nodes"), only a character vector can be used. If none of the taxa are present in a given timeslice, that timeslice will be skipped.
+#'@param raster.sets Character vector with the names of the various raster sets. Only used if a single raster object containing all paleoclimates is provided for 'clim'.
 #'@param resp.curv If TRUE, create ancestral niche models with skew-normal response curves. If FALSE, assume response is a uniform distribution within certain confidence limits specified by 'clip.amt'. This produces a binary niche model. Default = T.
 #'@param clip.Q If TRUE, clip the tails of each response curve at certain confidence limits specified by 'clip.amt' (default is 0.95). Produces "cleaner" models. Default = T.
 #'@param clip.amt Float value between 0 and 1 specifying confidence limits at which clip.Q=T or resp.curv=F operates. For example, at the default (0.95), the limits are the 0.025% and 0.975% quantiles for each response curve.
@@ -1262,7 +1263,7 @@ machu.ace.load <- function(file){
 #'@import terra
 #'@import sn
 #'@export
-machu.3.anc.niche <- function(ace, clim, taxa=NULL, resp.curv=T, clip.Q=T, clip.amt=0.95, clip.samples=10000, ocean=NA, output.folder=NULL, verbose=F) {
+machu.3.anc.niche <- function(ace, clim, taxa=NULL, raster.sets=NULL, resp.curv=T, clip.Q=T, clip.amt=0.95, clip.samples=10000, ocean=NA, output.folder=NULL, verbose=F) {
 
   #############################################
   ### 1: Prune taxon set and perform checks ###
