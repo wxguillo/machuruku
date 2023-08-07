@@ -208,6 +208,7 @@ The output `mod` is a list where each element is a RasterLayer; the `lapply` fun
 Occurrence data are often spatially autocorrelated due to systematic biases in the way we collect specimens, i.e. they tend to be clustered in easily accessible locations. Spatial autocorrelation can induce downstream impacts on niche modeling, necessitating the use of algorithms to "rarefy", or thin, occurrence data beforehand. In Machuruku, the function `machu.occ.rarefy` can do this for you. 
 ```
 # rarefy occurrence data
+dev.off()
 occ.r <- machu.occ.rarefy(occ, rarefy.dist=10, plot=T)
 ```
 The `rarefy.dist` option specifies the amount of rarefication to perform; in my example, I've set it to 10 km (the default unit; decimal degrees are also available with `rarefy.units="dd"`) such that all points must be at least 10 km from any other point. Adjust this value to fit the spatial scale of your data. Also, the `plot=T` option (new for Machuruku 2.0) visualizes the extent of rarefication performed:
