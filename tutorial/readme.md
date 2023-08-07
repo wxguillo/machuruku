@@ -46,7 +46,13 @@ Load up Machuruku by running:
 ```
 library(machuruku)
 ```
-You can test if it worked by typing `machu` into the console (in RStudio) and seeing if all of the functions appear in autofill.
+You may encounter an error trying to install the "Treeio" package, which is not on CRAN. Install it with the following and try the above installation again:
+```
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("treeio")
+```
+You can test if the function worked by typing `machu` into the console (in RStudio) and seeing if all of the functions appear in autofill.
 ### Downloading and exploring tutorial data
 I opted to provide the raw tutorial data in this repository rather than within the R package itself so that I can demonstrate how to load it. For now you will need 3 of the files: 
 * `basslerigroup.treefile` - A nexus-formatted treefile containing the three members of the *Ameerega bassleri* group, a small clade of Amazonian dendrobatid poison frogs. This tree was time-calibrated in [BEAST 2](https://www.beast2.org/) and contains 95% HPD intervals for each node height (divergence time). It is a small subset of the UCE phylogeny of *Ameerega* presented in [Guillory et al. 2020](https://www.sciencedirect.com/science/article/pii/S1055790319304609), restricted to the *bassleri* group (*Ameerega bassleri, pepperi,* and *yoshina*) plus *A. silverstonei*, an in-genus outgroup taxon with a similar distribution.
