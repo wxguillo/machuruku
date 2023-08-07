@@ -28,7 +28,7 @@ machu.3.anc.niche(
 
 \item{clip.Q}{If TRUE, clip the tails of each response curve at certain confidence limits specified by 'clip.amt' (default is 0.95). Produces "cleaner" models. Default = T.}
 
-\item{clip.amt}{Float value between 0 and 1 specifying confidence limits at which clip.Q=T or resp.curv=F operates. For example, at the default (0.95), the limits are the 0.025\\% and 0.975\\% quantiles for each response curve.}
+\item{clip.amt}{Float value between 0 and 1 specifying confidence limits at which clip.Q=T or resp.curv=F operates. For example, at the default (0.95), the limits are the 0.025\% and 0.975\% quantiles for each response curve.}
 
 \item{clip.samples}{The number of random samples taken by rsn() while determining confidence limits when clip.Q=T or resp.curv=F. Default = 10000. Decreasing may result in a speed boost at the cost of accuracy.}
 

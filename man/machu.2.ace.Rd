@@ -44,7 +44,7 @@ You should use a dated tree with this function, otherwise your projections into 
 
 The 'timeslice' parameter uses linear interpolation to calculate values for each "branch-taxon". For example, timeslice=1e6 will detect which branches exist at 1 Ma, and perform a linear interpolation of climate response values using the values at the subtending nodes/tips. See Guillory & Brown (2021) for a more detailed explanation. Of course, make sure to specify timeslices in the relative scale your tree's node ages are coded in. For example, BEAST node ages are often in units of millions of years, so "1" would be equivalent to the "1e6" I use in my example.
 
-The 'unc' parameter behavior has been changed for machuruku 2.0. Now setting unc=T only extracts the upper and lower 95\\% confidence intervals for each climate response parameter provided by ace(). These are automatically incorporated into the Bioclim calculations in machu.3.anc.niche(), producing more conservative niche models. When "tips and nodes" are returned (not timeslices), the tips do not have associated confidence intervals because they are held over from the 'tip.resp' input, not produced via ace().
+The 'unc' parameter behavior has been changed for machuruku 2.0. Now setting unc=T only extracts the upper and lower 95\% confidence intervals for each climate response parameter provided by ace(). These are automatically incorporated into the Bioclim calculations in machu.3.anc.niche(), producing more conservative niche models. When "tips and nodes" are returned (not timeslices), the tips do not have associated confidence intervals because they are held over from the 'tip.resp' input, not produced via ace().
 
 Use machu.ace.load() to reload outputs saved with 'csv.name'.
 }
