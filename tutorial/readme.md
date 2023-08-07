@@ -42,15 +42,15 @@ To install Machuruku, simply use the `install_github()` function from `devtools`
 install.packages("devtools")
 devtools::install_github("wxguillo/machuruku")
 ```
-Load up Machuruku by running:
-```
-library(machuruku)
-```
 You may encounter an error trying to install the "Treeio" package, which is not on CRAN. Install it with the following and try the above installation again:
 ```
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 BiocManager::install("treeio")
+```
+Load up Machuruku by running:
+```
+library(machuruku)
 ```
 You can test if the function worked by typing `machu` into the console (in RStudio) and seeing if all of the functions appear in autofill.
 ### Downloading and exploring tutorial data
