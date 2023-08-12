@@ -268,7 +268,7 @@ machu.top.env <- function(occ, clim, sp.col=1, col.xy=2:3, learning.rt=0.01, ste
   # however if the data is low resolution there will likely be too few cells to sample w/o replacement
   # check if this is the case, and if so, change n.occ.max to n.cells
   n.cells <- nrow(rasterToPoints(clim[[1]], fun=NULL, spatial=FALSE)) # doesn't count ocean cells
-  if (n.occ.max*30 > n.cells) n.occ.max <- n.cells
+  if (n.occ.max*30 > n.cells) n.occ.max <- n.cells/30
   if (verbose == F) { print("Extracting climate values from rasters. This could take a minute.")}
   pa.pool <- sampleRandom(clim, n.occ.max*30, xy=T)
   if (verbose == F) { print("Finished extracting climate values.")}
