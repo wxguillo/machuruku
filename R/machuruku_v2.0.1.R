@@ -46,6 +46,10 @@
 #
 # removed machu.geo.idw because conceptually using present-day distributions to restrict
 # past niche models doesn't make a lot of sense, and I wasn't happy with the results.
+#
+#                Machuruku v2.0.1
+# updated machu.tree.unc to account for more use-cases when a multi-tree nexus file is
+# used as input (i.e. slightly different formats).
 
 #' Calculate tip climate response curves
 #'
@@ -469,7 +473,7 @@ machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units 
   return(data.out)
 }
 
-#'Account for uncertainty in divergence time estimation from a single tree
+#'Account for uncertainty in divergence time estimation
 #'
 #'Create a list of three trees that represent uncertainty in divergence times for downstream analysis
 #'
@@ -485,6 +489,8 @@ machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units 
 #'The function has two modes, depending on what input is provided. When a single tree is provided, the function outputs the input tree, plus two additional trees, constructed from the upper and lower confidence limits provided to characterize divergence time uncertainty by time calibration software such as BEAST. The 'phylo' object (from ape::read.tree) usually used to represent phylogenetic trees in R does not store this information, so the input must be in the 'treedata' format (from treeio::read.beast). Currently the function is compatible with output from BEAST and BEAST-adjacent software such as SNAPP, as well as output from MEGA calibrated with the RelTime method.
 #'
 #'The other mode characterizes uncertainty directly from a Bayesian posterior of trees. The function identifies the trees in the posterior with total tree heights closest to the median and the highest posterior density (HPD) limits of the distribution of tree heights. Because a tree posterior can consist of millions of trees, rather than overwhelm R by loading them all into an object (i.e. 'treedataList' from treeio), the function reads the trees directly from a file one at a time. Thus this mode is activated by specifying a filename; the file should be output from BEAST or BEAST-adjacent software, generally a .trees file in NEXUS format (open the file in a text editor to check, and examine the example file provided by the tutorial). The method consists of three "passes" through the posterior distribution of trees. In the first pass, the number of trees is simply counted, and the number of samples to skip as burn-in, given the burnin percentage specified by the user, is calculated. In the second pass, total tree heights are calculated for each tree, and the median and HPD limits at the confidence level specified are calculated for this distribution. In the third pass, the trees with total heights closest to the median and HPD limits are found, and sent to the output list.
+#'
+#'Because different software or even versions of the same software may output subtly variable versions of the same formats, I can't guarantee that this function can read in your multiple-tree nexus file. In some cases the issue may be easily fixed with a patch - contact me (WXG) with bugs.
 #'
 #'@return A list of three 'phylo' objects characterizing uncertainty in divergence times.
 #'
@@ -585,7 +591,6 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
     con <- file(tree, "r")
     # initiate tree counter and translation table
     treenumber <- 1
-    #tlntab <- rep(NA, Ntip(read.nexus(tree))[[1]])
     tlntab <- c()
     while (T) {
       line <- readLines(con, n=1)
@@ -593,7 +598,7 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
       # get tip translation table
       if (grepl("^\\s+\\d+\\s.+", line)==T) tlntab <- c(tlntab, line)
       # if the line is actually a tree, do this:
-      if (grepl("^tree", line)==T) {
+      if (grepl("^\\s*tree", line, ignore.case=T)==T) {
         if (treenumber %% inc == 0 & verbose==T) print(paste0("First pass (burnin): Tree ", treenumber))
         treenumber <- treenumber+1
       }
@@ -619,7 +624,7 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
       line = readLines(con, n = 1)
       if (length(line)==0) break
       # if the line is actually a tree, do this:
-      if (grepl("^tree", line)==T) {
+      if (grepl("^\\s*tree", line, ignore.case=T)==T) {
         # if treenumber is still below the burnin threshold, skip the tree
         if (treenumber <= burn.no){
           # shout to screen
@@ -655,7 +660,7 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
       line = readLines(con, n=1)
       if (length(line)==0) break
       # if the line is actually a tree, do this:
-      if (grepl("^tree", line)==T) {
+      if (grepl("^\\s*tree", line, ignore.case=T)==T) {
         # if treenumber is still below the burnin threshold, skip the tree
         if (treenumber <= burn.no){
           if (treenumber %% inc == 0 & verbose == TRUE){ print(paste0("Third pass (trees): Tree ", treenumber, " (skipped at ", burnin*100, "% burnin)")) }
