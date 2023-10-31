@@ -8,6 +8,7 @@ The new version of Machuruku is now available via Github. Machuruku 2.0 has been
 To install Machuruku, simply use the `install_github()` function from `devtools`:
 ```
 install.packages("devtools")
+install.packages("TeachingDemos")
 devtools::install_github("wxguillo/machuruku")
 ```
 You may encounter an error trying to install the "Treeio" package, which is not on CRAN. Install it with the following and try the above installation again:
