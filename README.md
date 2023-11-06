@@ -1,7 +1,7 @@
 # machuruku
 Machuruku is an R package for reconstructing the ancestral distributions of lineages with phylogenetic niche modeling. The package takes present-day occurrence data, a time-calibrated phylogeny, and past and present climate data to infer and visualize the ancient niches of species. 
-## September 6 2023: Machuruku 2.0.1 released
-Small patch updating `machu.tree.unc` to account for more variation in format of a multi-tree nexus file.
+## November 6 2023: Machuruku 2.0.2 released
+Small patch updating namespace and removing some unnecessary dependencies.
 ### August 7 2023: Machuruku 2.0 released
 The new version of Machuruku is now available via Github. Machuruku 2.0 has been rewritten from the ground up, with quicker code, cleaner graphics, and the ability to reconstruct and project multiple timeslices and paleoclimates all in one command. Visit the revamped [tutorial](https://github.com/wxguillo/machuruku/tree/main/tutorial#machuruku-the-tutorial-20) for an in-depth guide at using Machuruku 2.0.
 ### Install
