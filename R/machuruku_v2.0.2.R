@@ -380,17 +380,13 @@ machu.top.env <- function(occ, clim, sp.col=1, col.xy=2:3, learning.rt=0.01, ste
 #'
 #' @return A dataframe with rarefied occurrence data.
 #'
-#' @importFrom spatstat.geom nndist
-#' @importFrom tcltk setTkProgressBar
 #' @examples
 #' ##remove occurrences closer than a minimum distance to each other (remove aggregation). Setting min.dist=0 will remove no occurrence.
 #' occ <- machu.occ.rarefy(in.pts = occ, colxy = 2:3, rarefy.dist = 50, rarefy.units = "km")
+#' @importFrom spatstat.geom nndist
+#' @import sp
 #' @export
 machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units = "km", plot=F, verbose = T) {
-  switch(Sys.info()[['sysname']],
-         Windows= {userOS=1},
-         Linux  = {userOS=2},
-         Darwin = {userOS=2})
   # input adjustments
   if (rarefy.units == "KM" | rarefy.units == "Km") rarefy.units <- "km"
   if (rarefy.units == "DD" | rarefy.units == "Dd") rarefy.units <- "dd"
@@ -418,8 +414,6 @@ machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units 
   }
 
   nPts <- nrow(xy)
-  if (verbose==T & userOS==1) pb <- winProgressBar(title = "Initializing", min = 0, max =nPts, width = 300)
-  if (verbose==T & userOS==2) pb <- tkProgressBar(title = "Initializing", label = "", min = 0, max = nPts, initial = nPts, width = 300)
 
   # setup env - separate from distance
   spName <- in.pts[,1][1]
@@ -444,8 +438,6 @@ machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units 
       for (k in 3:6) {
         nn <- nndist(del.min.dist[, "x4r"], del.min.dist[, "y4r"], k = k)
         delk <- delk & nn == min(nn[delk])
-        if (verbose == T & userOS==1){setWinProgressBar(pb, length(delk), title=paste(" Rarefying:",length(delk),"remaining localities (of", nPts,"input)"))}
-        if (verbose == T & userOS==2){setTkProgressBar(pb, length(delk), title=paste(length(delk),"remaining pts (of", nPts))}
         if (sum(nn[delk] == min(nn[delk])) > 1) {
           break
         }
@@ -455,7 +447,6 @@ machu.occ.rarefy <- function(in.pts, colxy = 2:3, rarefy.dist = 0, rarefy.units 
     # closest to the second neighbour
     del.min.dist <- del.min.dist[-(which(delk)[1]), ]
   }
-  if (verbose == T) close(pb)
   new.data <- rbind(new.data, del.min.dist)
   nc <- (ncol(new.data))
   col.orig <- c(3:nc)
