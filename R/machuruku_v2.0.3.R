@@ -50,6 +50,17 @@
 #                Machuruku v2.0.1
 # updated machu.tree.unc to account for more use-cases when a multi-tree nexus file is
 # used as input (i.e. slightly different formats).
+#
+#                Machuruku v2.0.2
+# machu.occ.rarefy no longer uses the tcltk progress bar. The package wouldn't install
+# for some users and is no longer a dependency of machuruku.
+#
+# the TeachingDemos package used to calculate HPD intervals in machu.tree.unc has been
+# added to the package NAMESPACE as a dependency.
+#
+#                Machuruku v2.0.3
+# machu.1.tip.resp now has the option to jitter climate response values in the case where
+# low variation throws errors
 
 #' Calculate tip climate response curves
 #'
@@ -63,12 +74,15 @@
 #' @param plot.points If TRUE, plot each taxon's occurrence data on top of its corresponding niche model. Default = F.
 #' @param plot.asp Aspect ratio used to calculate the best arrangement of plots when plot="together". Default = 16/9.
 #' @param output.bioclim If TRUE, output a Bioclim niche model raster for each taxon instead of climate response curves.
+#' @param jitter If TRUE, slightly jitter climate response values after sampling. Use this to avoid certain errors that arise from low-variability climate responses
 #' @param verbose If TRUE, print progress updates to the screen.
 #'
 #' @details
 #' This function uses the function dismo::bioclim() to construct present-day Bioclim niche models. It is only compatible with the older Raster package, so a SpatRaster object (from the newer Terra package) will automatically be converted before being passed to the rest of the function.
 #'
 #' Unfortunately the constraints of the 'sn::selm()' function disallow any taxa having fewer than 10 occurrence points. To that end, this function contains a utility to randomly sample occurrence points within the minimum convex polygon comprised of the occurrence data for species, up to n=10. When the plotting functionality is activated (i.e. plot="s" or plot="t"), these random points are drawn in red. In this case, the output of the function will be a list that contains the normal output (response table or niche models) as well as the occurrence data table with the newly added random points. Obviously, it is better to have at least 10 real occurrence points; however for rare species, or range-limited species after spatial rarefication, that may be difficult or impossible.
+#'
+#' The sn::selm function that is used to construct skew-normal distributions from sampled climate response values sometimes returns errors ("missing value where TRUE/FALSE needed") when the variation in the sampled climate responses is low. A simple workaround is to slightly jitter the climate response values, which introduces enough variation to let selm do its job, while only minimally affecting the result. Use jitter=T to turn this option on.
 #'
 #' @return Table consisting of the response of each species to the climate data. Each response is represented by a skew-normal distribution. Alternatively, the function can output the actual Bioclim niche models.
 #'
@@ -91,7 +105,7 @@
 #' @import sf
 #' @import dplyr
 #' @export
-machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.points=F, plot.asp=16/9, output.bioclim=F, verbose=F){
+machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.points=F, plot.asp=16/9, output.bioclim=F, jitter=F, verbose=F){
 
   # get species' names
   sp <- unique(occ[,sp.col])
@@ -180,6 +194,9 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
   for (j in sp){
 
     in.pres <- enms[[j]]
+
+    # jitter climate values in case selm throws errors
+    if (jitter==T) in.pres <- as.data.frame(apply(in.pres, 2, function(x) jitter(x, factor=0.001)))
 
     # initialize vector that will later be each row of the table
     row.vector <- c()

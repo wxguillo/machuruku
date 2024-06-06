@@ -1,7 +1,7 @@
 Package: machuruku
 Title: Ancestral niche reconstruction
-Version: 2.0.2
-Date: 2023-11-06
+Version: 2.0.3
+Date: 2024-06-05
 Authors@R: c(
     person("Wilson", "Guillory", email = "wxg1@rutgers.edu", role = c("aut", "cre")),
     person("Jason", "Brown", email = "jason.brown@siu.edu", role = "aut"))
@@ -10,6 +10,6 @@ License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.1
 Imports: ape, dismo, dplyr, gbm, mgsub, phytools, raster, scales, sf, sn, sp, terra, treeio, spatstat.geom, TeachingDemos
 URL: https://github.com/wxguillo/machuruku/
