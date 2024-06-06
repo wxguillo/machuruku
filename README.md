@@ -1,14 +1,13 @@
 # machuruku
 Machuruku is an R package for reconstructing the ancestral distributions of lineages with phylogenetic niche modeling. The package takes present-day occurrence data, a time-calibrated phylogeny, and past and present climate data to infer and visualize the ancient niches of species. 
-## November 6 2023: Machuruku 2.0.2 released
-Small patch updating namespace and removing some unnecessary dependencies.
+## June 5 2023: Machuruku 2.0.3 released
+Small patch fixing a bug in machu.1.tip.resp().
 ### August 7 2023: Machuruku 2.0 released
 The new version of Machuruku is now available via Github. Machuruku 2.0 has been rewritten from the ground up, with quicker code, cleaner graphics, and the ability to reconstruct and project multiple timeslices and paleoclimates all in one command. Visit the revamped [tutorial](https://github.com/wxguillo/machuruku/tree/main/tutorial#machuruku-the-tutorial-20) for an in-depth guide to using Machuruku 2.0.
 ### Install
 To install Machuruku, simply use the `install_github()` function from `devtools`:
 ```
 install.packages("devtools")
-install.packages("TeachingDemos")
 devtools::install_github("wxguillo/machuruku")
 ```
 You may encounter an error trying to install the "Treeio" package, which is not on CRAN. Install it with the following and try the above installation again:
