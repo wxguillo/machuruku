@@ -61,6 +61,19 @@
 #                Machuruku v2.0.3
 # machu.1.tip.resp now has the option to jitter climate response values in the case where
 # low variation throws errors
+#
+#                Machuruku v2.0.4
+# fixed an issue with machu.1.tip.resp where the function would not work or would remove
+# extra (i.e. not species or lat/long) columns in the occurrence dataset when generating
+# random MCP-contained points for species with fewer than 10 points. Extra columns are
+# maintained in the output now
+#
+# added a "decimals" argument to machu.treeplot that allows one to specify the number of
+# decimal places shown in the node labels
+#
+# fixed the "output.folder" option in machu.3.anc.niche, which didn't work before
+#
+# gated an always-on warning message in machu.3.anc.niche behind "verbose=T"
 
 #' Calculate tip climate response curves
 #'
@@ -109,28 +122,36 @@ machu.1.tip.resp <- function(occ, clim, sp.col=1, col.xy=2:3, plot="n", plot.poi
 
   # get species' names
   sp <- unique(occ[,sp.col])
-
   # check whether each species has at least 10 occurrence points
-  occ.counts <- sapply(sp, function(x) nrow(subset(occ, occ[sp.col] == x)))
+  occ.counts <- table(occ[,sp.col])
+
   # if so, add points up to n=10 within the bounding box comprised of the species' points, and print warning messages since this isn't exactly best practice
   if (any(occ.counts < 10)){
     add.pts <- names(occ.counts[occ.counts < 10])
-    print(paste("The following taxa have fewer than 10 occurrence points:", paste(add.pts, collapse=", ")))
-    print(paste("Warning: adding random points up to n=10 for each of these species, contained within MCP defined by points."))
+    if (verbose==T) print(paste("The following taxa have fewer than 10 occurrence points:", paste(add.pts, collapse=", ")))
+    if (verbose==T) print(paste("Warning: adding random points up to n=10 for each of these species, contained within MCP defined by points."))
     # create a list where each element is a table for a single species (only species with <10 points)
-    t <- lapply(add.pts, function(sp) occ[occ[,sp.col]==sp,]); names(t) <- add.pts
+    t <- lapply(add.pts, function(sp) occ[occ[,sp.col]==sp,])
+    names(t) <- add.pts
     # randomly select 10 minus the number of points for each taxon within a minimum convex polygon
     t <- lapply(t, function(x) x %>% st_as_sf(coords=col.xy) %>% summarize(geometry=st_union(geometry)) %>% st_convex_hull() %>% st_sample(10-nrow(x)))
     # convert to dataframes
     t <- lapply(t, function(x) unlist(x) %>% matrix(ncol=2, byrow=T) %>% as.data.frame())
     # add species name column and new "rand" column specifying which points are randomly generated
-    t <- lapply(names(t), function(x) cbind(rep(x, nrow(t[[x]])), t[[x]], rep(T, nrow(t[[x]]))))
-    # combine into new table
-    t <- setNames(do.call(rbind, t), c(names(occ), "rand"))
+    t <- lapply(names(t), function(x) cbind(rep(x, nrow(t[[x]])), t[[x]]))
+    t <- do.call(rbind, t)
+    # make empty output table that matches the ncol of the input table
+    ot <- data.frame(matrix(ncol=ncol(occ), nrow=nrow(t)))
+    # add data in the same order that the input data came in, while leaving any extra columns as NA's
+    ot[,sp.col] <- t[,1]
+    ot[,col.xy] <- t[,2:3]
+    colnames(ot) <- colnames(occ)
     # combine with original table
-    t <- rbind(setNames(cbind(occ, rep(F, nrow(occ))), c(names(occ), "rand")), t)
+    occ <- rbind(occ, ot)
+    # add "rand" column to differentiate random points from original ones
+    occ <- cbind(occ, "rand"=c(rep(F, nrow(occ)-nrow(ot)), rep(T, nrow(ot))))
     # sort table
-    occ <- t[order(t[,sp.col]),]
+    occ <- occ[order(occ[,sp.col]),]
   }
 
   if (class(clim)=="SpatRaster"){
@@ -735,6 +756,7 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
 #'@param timelabs Whether to plot divergence time labels at each node. Default = T.
 #'@param timelabsize Size of div time labels. Default = 0.8, which is optimized for simple trees.
 #'@param timelaboffset Offset of div time labels from their respective nodes. Default = -0.35, which is optimized for simple trees. Making this number more negative will offset the labels further to the right.
+#'@param decimals Specify number of decimal places displayed in the node (divergence time) labels. Default = 2.
 #'
 #'@details
 #'This function tends to generate warnings that shouldn't affect the output. You can turn them off with options(warn=-1).
@@ -748,7 +770,7 @@ machu.tree.unc <- function(tree, burnin=0.1, conf=0.95, inc=10000, verbose=T){
 #'machu.treeplot(tree, c(1e6, 2e6, 3e6))
 #'@import phytools
 #'@export
-machu.treeplot <- function(tree, timeslice=NULL, nodelabs=T, nodelabsize=0.5, col="red", x.u.lim=NULL, x.l.lim=NULL, timelabs=T, timelabsize=0.8, timelaboffset=-0.35){
+machu.treeplot <- function(tree, timeslice=NULL, nodelabs=T, nodelabsize=0.5, col="red", x.u.lim=NULL, x.l.lim=NULL, timelabs=T, timelabsize=0.8, timelaboffset=-0.35, decimals=2){
   # save user's previous par settings
   pars <- par()
 
@@ -771,8 +793,10 @@ machu.treeplot <- function(tree, timeslice=NULL, nodelabs=T, nodelabsize=0.5, co
     abline(v=timeslice, col=col) # draw timeslices, if provided
     plotTree(tree, direction="leftwards", xlim=xlims, ylim=ylims, mar=par()$mar, color="black", add=T)
     if (nodelabs==T) labelnodes(text=1:tree$Nnode, node=1:tree$Nnode+Ntip(tree), circle.exp=nodelabsize, interactive=F)
-    if (timelabs==T) ape::nodelabels(text=ape::branching.times(tree), node=1:tree$Nnode+Ntip(tree),
-                                     frame="none", adj=timelaboffset, cex=timelabsize)
+    if (timelabs==T){
+      divtimes <- round(ape::branching.times(tree), decimals)
+      ape::nodelabels(text=divtimes, node=1:tree$Nnode+Ntip(tree), frame="none", adj=timelaboffset, cex=timelabsize)
+    }
   }
   # plot multiple trees if a list greater than length=1 is given
   if (class(tree) == "list" && length(tree) > 1){
@@ -794,8 +818,10 @@ machu.treeplot <- function(tree, timeslice=NULL, nodelabs=T, nodelabsize=0.5, co
       plotTree(tree[[i]], direction="leftwards", xlim=xlims, ylim=ylims, mar=par()$mar, color="black")
       if (nodelabs==T) labelnodes(text=1:tree[[i]]$Nnode, node=1:tree[[i]]$Nnode+Ntip(tree[[i]]),
                                   circle.exp=nodelabsize/2, interactive=F)
-      if (timelabs==T) ape::nodelabels(text=ape::branching.times(tree[[i]]), node=1:tree[[1]]$Nnode+Ntip(tree[[i]]),
-                                       frame="none", adj=timelaboffset/0.8, cex=timelabsize/0.9)
+      if (timelabs==T){
+        divtimes <- round(ape::branching.times(tree[[i]]), decimals)
+        ape::nodelabels(text=divtimes, node=1:tree[[1]]$Nnode+Ntip(tree[[i]]), frame="none", adj=timelaboffset/0.8, cex=timelabsize/0.9)
+      }
     }
     axis(1, at=seq(0, xlims[1], by=om)) # plot timescale
     abline(v=timeslice, col=col) # plot timeslices. goes across all plots because par(xpd=T)
@@ -1330,7 +1356,7 @@ machu.3.anc.niche <- function(ace, clim, taxa=NULL, raster.sets=NULL, resp.curv=
   # solo SpatRaster: put into a single-element list
   if (class(clim)=="SpatRaster" && is.null(raster.sets)==T){
     clim <- list(clim)
-    print("Warning: solo SpatRaster detected, with no raster.sets specified; treating as a single timeslice.")
+    if (verbose==T) print("Warning: solo SpatRaster detected, with no raster.sets specified; treating as a single timeslice.")
   }
   # Multiple SpatRasters, joined with c(): separate into list elements based on raster.sets
   if (class(clim)=="SpatRaster" && is.null(raster.sets)==F){
@@ -1428,7 +1454,7 @@ machu.3.anc.niche <- function(ace, clim, taxa=NULL, raster.sets=NULL, resp.curv=
           if (clip.Q==T | resp.curv==F){
             # estimate quantiles for the skew-normal distribution (decrease clip.samples for possible speed boost, but less accuracy)
             Q <- quantile(x=rsn(clip.samples, xi=combo[1], omega=combo[2], alpha=combo[3]),
-                           probs=c((1-clip.amt)/2, clip.amt+(1-clip.amt)/2), names=F)
+                          probs=c((1-clip.amt)/2, clip.amt+(1-clip.amt)/2), names=F)
             # remove suitability values beyond those quantiles according to their position in the raster
             y[lyr < Q[1] | lyr > Q[2]] <- 0
             # if resp.curv is off, go further and convert all suitability values between quantiles to 1, producing a binary model
@@ -1440,7 +1466,7 @@ machu.3.anc.niche <- function(ace, clim, taxa=NULL, raster.sets=NULL, resp.curv=
         # sum the different runs, should provide a more generalized result
         projVal <- rowSums(projVal)
 
-        # if unc=T & resp.curv=F, the output bioclim will not be binary. Convert to binary here
+        # if unc=T & resp.curv=F the output bioclim will not be binary. Convert to binary here
         if (unc==T & resp.curv==F){
           # get a lower quantile specific to the distribution of unique summed suitability values in projVal
           LQ <- quantile(x=unique(projVal), probs=1-clip.amt, names=F)
@@ -1488,11 +1514,12 @@ machu.3.anc.niche <- function(ace, clim, taxa=NULL, raster.sets=NULL, resp.curv=
 
   # write rasters to files if an output folder was specified
   if (is.null(output.folder)==F){
+    if (endsWith(output.folder, "/")==F) output.folder <- paste0(output.folder, "/")
     if (verbose==T) print(paste0("Writing ", sum(sapply(all.out, length)), " rasters to ", output.folder, ":"))
     for (i in 1:length(all.out)){
       for (j in 1:length(all.out[[i]])){
         outname <- paste0(names(all.out)[i], "_", names(all.out[[i]])[j], ".tif")
-        terra::writeRaster(all.out[[i]][[j]], outname, filetype="GTiff", overwrite=T)
+        terra::writeRaster(all.out[[i]][[j]], paste0(output.folder, outname), filetype="GTiff", overwrite=T)
         if (verbose==T) print(outname)
       }
     }
